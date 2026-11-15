@@ -1,8 +1,10 @@
 // "Ask for a game": a line in the front page's footer opens this sheet. A game's name and, if they
-// like, a note; the card room files the request on GitHub for them (see the server's bugs.ts).
+// like, a note; the card room files the request on GitHub for them (see the server's bugs.ts). With an
+// AI key, "Next" first tidies it (the game's proper name, a short note) for them to look over.
 import TextField from "@spades/ui/zubra-ui/text-field.zb";
 import { useEffect, useState } from "react";
-import { ASK_EVENT, askForGame, type SentReport } from "./bugReport";
+import { ASK_EVENT, askForGame, bugs, type SentReport } from "./bugReport";
+import { TidyNote, useTidy } from "./Tidy";
 import { arranged } from "./catalogue";
 import { GAME_LIST } from "./GamePicker";
 
@@ -17,11 +19,16 @@ export function GameRequest() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<(SentReport & { again: boolean; game: string }) | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const canTidy = useTidy();
+  const [tidying, setTidying] = useState(false);
+  /** Looking over a tidied request: what goes, what the AI suggested, and what the player wrote. */
+  const [draft, setDraft] = useState<{ game: string; note: string; tidied: { game: string; note: string } | null; original: { game: string; note: string } } | null>(null);
 
   useEffect(() => {
     const ask = () => {
       setSent(null);
       setProblem(null);
+      setDraft(null);
       setOpen(true);
     };
     addEventListener(ASK_EVENT, ask);
@@ -37,23 +44,42 @@ export function GameRequest() {
   if (!open) return null;
 
   // A game the card room already has needs no request.
-  const have = game.trim() ? arranged(GAME_LIST).find((g) => plainName(g.name) === plainName(game)) : undefined;
+  const already = (name: string) => (name.trim() ? arranged(GAME_LIST).find((g) => plainName(g.name) === plainName(name)) : undefined);
+  const have = already(draft ? draft.game : game);
   const send = async () => {
     setProblem(null);
     setSending(true);
     try {
-      setSent({ ...(await askForGame(game.trim(), note.trim())), game: game.trim() });
+      const name = (draft ? draft.game : game).trim();
+      setSent({ ...(await (draft ? askForGame(name, draft.note.trim(), draft.original) : askForGame(name, note.trim()))), game: name });
       setGame("");
       setNote("");
+      setDraft(null);
     } catch (e) {
       setProblem((e as Error).message);
     }
     setSending(false);
   };
+  /** "Next": tidy the request first when the card room can, else send it as it is. */
+  const next = async () => {
+    if (!canTidy) return send();
+    const original = { game: game.trim(), note: note.trim() };
+    setProblem(null);
+    setTidying(true);
+    let tidied: { game: string; note: string } | null = null;
+    try {
+      const t = await bugs.tidy({ kind: "game", ...original });
+      if (t.kind === "game") tidied = { game: t.game, note: t.note };
+    } catch {
+      // Their own words, then: the review says so.
+    }
+    setTidying(false);
+    setDraft({ ...(tidied ?? original), tidied, original });
+  };
 
   return (
     <div data-no-screenshot>
-      <div className="sheet-backdrop report-backdrop" onClick={sending ? undefined : () => setOpen(false)} />
+      <div className="sheet-backdrop report-backdrop" onClick={sending || tidying ? undefined : () => setOpen(false)} />
       <div className="sheet report-sheet" role="dialog" aria-modal="true" aria-labelledby="ask-title">
         {sent ? (
           <>
@@ -75,12 +101,89 @@ export function GameRequest() {
               Back to the games
             </button>
           </>
+        ) : draft ? (
+          <form
+            className="report-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (draft.game.trim() && !have) void send();
+            }}
+          >
+            <h2 id="ask-title">Look it over</h2>
+            <TidyNote tidied={draft.tidied !== null} what="request" />
+            <TextField label="Which game?" required maxlength={60} value={draft.game} onValueChange={(e: CustomEvent<string>) => setDraft({ ...draft, game: e.detail })} />
+            {have && (
+              <p>
+                Good news: {have.emoji} {have.name} is already here. It's on the front page.
+              </p>
+            )}
+            <label className="report-words">
+              <span>Note</span>
+              <textarea rows={3} maxLength={NOTE_LIMIT} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
+            </label>
+            <div className="tidy-choices">
+              <button
+                type="button"
+                className="link"
+                disabled={draft.game === draft.original.game && draft.note === draft.original.note}
+                onClick={() => setDraft({ ...draft, ...draft.original })}
+              >
+                Put my own words back
+              </button>
+              {draft.tidied && (draft.game !== draft.tidied.game || draft.note !== draft.tidied.note) && (
+                <button type="button" className="link" onClick={() => setDraft({ ...draft, ...draft.tidied! })}>
+                  Use the tidied version
+                </button>
+              )}
+            </div>
+            <details className="report-details">
+              <summary>See exactly what's sent</summary>
+              <dl>
+                <div>
+                  <dt>Game</dt>
+                  <dd>{draft.game.trim()}</dd>
+                </div>
+                <div>
+                  <dt>Note</dt>
+                  <dd className="pre">{draft.note.trim() || "(none)"}</dd>
+                </div>
+                {(draft.game.trim() !== draft.original.game || draft.note.trim() !== draft.original.note) && (
+                  <div>
+                    <dt>Your own words</dt>
+                    <dd className="pre">{[draft.original.game, draft.original.note].filter(Boolean).join("\n\n")}</dd>
+                  </div>
+                )}
+              </dl>
+            </details>
+            {problem && (
+              <p className="error" role="alert">
+                {problem}
+              </p>
+            )}
+            <div className="report-actions">
+              <button
+                type="button"
+                className="secondary"
+                disabled={sending}
+                onClick={() => {
+                  setGame(draft.original.game);
+                  setNote(draft.original.note);
+                  setDraft(null);
+                }}
+              >
+                Back
+              </button>
+              <button type="submit" className="primary" disabled={sending || !draft.game.trim() || !!have}>
+                {sending ? "Sending…" : "Send request"}
+              </button>
+            </div>
+          </form>
         ) : (
           <form
             className="report-form"
             onSubmit={(e) => {
               e.preventDefault();
-              if (game.trim() && !have) void send();
+              if (game.trim() && !have) void next();
             }}
           >
             <h2 id="ask-title">Ask for a game</h2>
@@ -103,11 +206,11 @@ export function GameRequest() {
               </p>
             )}
             <div className="report-actions">
-              <button type="button" className="secondary" onClick={() => setOpen(false)} disabled={sending}>
+              <button type="button" className="secondary" onClick={() => setOpen(false)} disabled={sending || tidying}>
                 Cancel
               </button>
-              <button type="submit" className="primary" disabled={sending || !game.trim() || !!have}>
-                {sending ? "Sending…" : "Send request"}
+              <button type="submit" className="primary" disabled={sending || tidying || !game.trim() || !!have}>
+                {sending ? "Sending…" : tidying ? "Tidying it up…" : canTidy ? "Next" : "Send request"}
               </button>
             </div>
           </form>

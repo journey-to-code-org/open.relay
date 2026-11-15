@@ -11,6 +11,11 @@
 // "Ask for a game" (the front page's footer) comes the same way: a game's name and a note become an
 // issue labelled "game request", or a comment on the open request for that game.
 //
+// Before either is sent, the card room's AI key (when it has one) can tidy it: a clear title and a
+// concise report from the player's words, or a game's proper name and a short note. The page shows the
+// player the tidied version to keep, change, put back to their own words, or turn down; nothing is
+// sent until they say so. When a tidied version goes, the player's own words go with it, folded away.
+//
 // GitHub's API can't take a picture with an issue, so a screenshot is kept here and the issue links
 // to it. Only the newest few are kept.
 //
@@ -19,6 +24,7 @@
 //   bugs/reports     server only: issue number → the table it was sent from
 import { playerOf, type RoomDoc } from "@spades/rooms/server";
 import { gameName, gameOfOptions } from "./games.js";
+import type { TidyInput, Tidied } from "./ai.js";
 
 interface Rooms {
   sync: {
@@ -39,6 +45,10 @@ export interface BugOptions {
   /** Reports one browser may send in ten minutes, and everyone together in a day. */
   each?: number;
   daily?: number;
+  /** Tidies a report or request with the card room's AI key; leave it out when there's no key. */
+  tidy?: (input: TidyInput) => Promise<Tidied | null>;
+  /** Tidy-ups one browser may ask for in ten minutes. */
+  tidies?: number;
   /** For tests. */
   fetch?: typeof fetch;
   now?: () => number;
@@ -52,6 +62,7 @@ export const SHOT_LIMIT = 600_000;
 export const REPORT_LIMIT = 1_000_000;
 export const GAME_NAME_LIMIT = 60;
 export const NOTE_LIMIT = 600;
+export const TITLE_LIMIT = 90;
 const GAME_LABEL = "game request";
 /** A game's name as two requests for it would share it: "Mah-Jongg!" and "mah jongg" are one game. */
 const sameGame = (name: string) => name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
@@ -147,6 +158,9 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
   const each = options.each ?? 3;
   const daily = options.daily ?? 40;
   const version = line(options.version, 40);
+  const tidier = enabled ? options.tidy : undefined;
+  const tidies = options.tidies ?? 8;
+  const tidied = new Map<string, number[]>();
   const docs = rooms.sync.documents();
 
   // Anyone can reach this without signing in to anything, and every report becomes a public issue:
@@ -231,6 +245,31 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
   }
   const urlOf = (issue: Issue) => issue.html_url ?? `https://github.com/${repo}/issues/${issue.number}`;
 
+  /** POST /bugs/tidy: the player's words, tidied for the developers, for them to look over. */
+  async function tidy(request: Request): Promise<Response> {
+    if (!tidier) return json({ error: "Tidying isn't on in this card room." }, 503);
+    const who = playerOf(request) ?? `ip:${request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"}`;
+    const at = now();
+    const mine = (tidied.get(who) ?? []).filter((t) => at - t < 600_000);
+    if (mine.length >= tidies) return json({ error: "That's a lot of tidying. Send it as it is, or try again in a few minutes." }, 429);
+    const input = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+    let asked: TidyInput;
+    if (input.kind === "game") {
+      const game = line(input.game, GAME_NAME_LIMIT);
+      if (sameGame(game).length < 2) return json({ error: "Which game would you like?" }, 400);
+      asked = { kind: "game", game, note: lines(input.note, NOTE_LIMIT) };
+    } else {
+      const description = lines(input.description, DESCRIPTION_LIMIT);
+      // A word or two needs no tidying.
+      if (description.length < 12) return json({ error: "Say a little more about what went wrong first." }, 400);
+      asked = { kind: "bug", description, screen: line(input.screen, 60) || undefined, game: line(input.game, 40) || undefined };
+    }
+    tidied.set(who, [...mine, at]);
+    const result = await tidier(asked);
+    if (!result) return json({ error: "It couldn't be tidied just now. You can send it in your own words." }, 502);
+    return json(result);
+  }
+
   /**
    * "Ask for a game": the front page's footer. A game someone has already asked for (and that's still
    * open) gets a comment, not a second issue, so the issue's comments count how many want it.
@@ -245,17 +284,22 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
     const game = line(input.game, GAME_NAME_LIMIT);
     const note = lines(input.note, NOTE_LIMIT);
     if (sameGame(game).length < 2) return json({ error: "Which game would you like?" }, 400);
+    // What the player first wrote, when they're sending a tidied version: kept with it, folded away.
+    const given = input.original && typeof input.original === "object" ? (input.original as Record<string, unknown>) : null;
+    const original = given ? { game: line(given.game, GAME_NAME_LIMIT), note: lines(given.note, NOTE_LIMIT) } : null;
+    const theirWords = original && (original.game !== game || original.note !== note) ? [details("The player's own words", [`Game: ${plain(original.game)}`, "", original.note ? quote(original.note) : "_No note._"].join("\n")), ""] : [];
+    const tidyMark = theirWords.length ? " Tidied with AI; the player looked it over before sending." : "";
 
     const asked = (await github<Issue[]>("GET", `/issues?state=open&labels=${encodeURIComponent(GAME_LABEL)}&per_page=100`)) ?? [];
     const already = asked.find((i) => !i.pull_request && typeof i.number === "number" && sameGame((i.title ?? "").replace(/^Game request:/i, "")) === sameGame(game));
-    const sent = `_Sent from inside Card Room with “Ask for a game”, ${new Date(now()).toISOString().slice(0, 10)}._`;
+    const sent = `_Sent from inside Card Room with “Ask for a game”, ${new Date(now()).toISOString().slice(0, 10)}.${tidyMark}_`;
     if (already) {
-      const said = await github<{ id?: number }>("POST", `/issues/${already.number}/comments`, { body: ["Another player asked for this.", ...(note ? ["", quote(note)] : []), "", sent].join("\n") });
+      const said = await github<{ id?: number }>("POST", `/issues/${already.number}/comments`, { body: ["Another player asked for this.", ...(note ? ["", quote(note)] : []), "", ...theirWords, sent].join("\n") });
       if (!said) return json({ error: "The request couldn't be sent just now. Try again in a minute." }, 502);
       count(who);
       return json({ ok: true, number: already.number, url: urlOf(already), again: true }, 201);
     }
-    const body = [`A player asked for **${plain(game)}**.`, "", note ? quote(note) : "_They didn't add a note._", "", sent].join("\n");
+    const body = [`A player asked for **${plain(game)}**.`, "", note ? quote(note) : "_They didn't add a note._", "", ...theirWords, sent].join("\n");
     const issue = await github<Issue>("POST", "/issues", { title: `Game request: ${plain(game)}`, body, labels: ["enhancement", GAME_LABEL] });
     if (!issue || typeof issue.number !== "number") return json({ error: "The request couldn't be sent just now. Try again in a minute." }, 502);
     count(who);
@@ -272,6 +316,9 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
 
     const input = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
     const description = lines(input.description, DESCRIPTION_LIMIT);
+    // A title the player chose (or kept from a tidy-up), and what they first wrote when it was tidied.
+    const chosenTitle = line(input.title, TITLE_LIMIT);
+    const original = lines(input.original, DESCRIPTION_LIMIT);
     const screen = line(input.screen, 60);
     const game = line(input.game, 40);
     const table = line(input.table, 40);
@@ -288,7 +335,8 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
 
     const where = [screen || "somewhere in the app", game && `(${game})`].filter(Boolean).join(" ");
     const firstLine = description.split("\n")[0]!.trim();
-    const title = firstLine ? (firstLine.length > 80 ? `${firstLine.slice(0, 79).trimEnd()}…` : firstLine) : `Problem reported on ${where}`;
+    const title = chosenTitle || (firstLine ? (firstLine.length > 80 ? `${firstLine.slice(0, 79).trimEnd()}…` : firstLine) : `Problem reported on ${where}`);
+    const rewritten = original !== "" && original !== description;
     const body = [
       description ? quote(description) : "_The player didn't add a description._",
       "",
@@ -303,7 +351,8 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
       ...(errors.length ? [details(`Errors the page logged (${errors.length})`, fence(errors.join("\n\n"))), ""] : []),
       ...(aboutTable ? [details("The table", fence(aboutTable.join("\n"))), ""] : []),
       ...(browser ? [details("Browser", fence(browser)), ""] : []),
-      `_Sent from inside Card Room with “Report a problem”.${shot ? "" : " No screenshot."}${browser ? "" : " The player chose not to share browser details."}_`,
+      ...(rewritten ? [details("The player's own words", quote(original)), ""] : []),
+      `_Sent from inside Card Room with “Report a problem”.${rewritten ? " Tidied with AI; the player looked it over before sending." : ""}${shot ? "" : " No screenshot."}${browser ? "" : " The player chose not to share browser details."}_`,
     ].join("\n");
 
     const issue = await github<Issue>("POST", "/issues", { title: plain(title), body, labels: ["bug", "player report"] });
@@ -324,8 +373,11 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
       if (pathname !== mount && !pathname.startsWith(`${mount}/`)) return null;
       const action = pathname.slice(mount.length).split("/").filter(Boolean).join("/");
       // GET /bugs/config → whether the page should offer "Report a problem" at all
-      if (action === "config" && request.method === "GET") return json({ enabled });
-      // POST /bugs { description?, screen?, game?, table?, built?, errors?, browser?, screenshot? } → { number, url }
+      if (action === "config" && request.method === "GET") return json({ enabled, tidy: !!tidier });
+      // POST /bugs/tidy { kind: "bug", description, screen?, game? } → { title, report }
+      //              or { kind: "game", game, note? } → { game, note }: for the player to look over
+      if (action === "tidy" && request.method === "POST") return tidy(request);
+      // POST /bugs { description?, title?, original?, screen?, game?, table?, built?, errors?, browser?, screenshot? } → { number, url }
       if (action === "" && request.method === "POST") return report(request);
       // POST /bugs/game { game, note? } → { number, url, again }: ask for a game the card room doesn't have
       if (action === "game" && request.method === "POST") return askForGame(request);

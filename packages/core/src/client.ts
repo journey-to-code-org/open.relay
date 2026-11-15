@@ -135,14 +135,47 @@ export interface SentReport {
   url: string;
 }
 
-let asked: Promise<boolean> | null = null;
+/** A report or request as the card room's AI tidied it, for the player to look over. */
+export type Tidied = { kind: "bug"; title: string; report: string } | { kind: "game"; game: string; note: string };
+
+let asked: Promise<{ enabled: boolean; tidy: boolean }> | null = null;
+const config = () =>
+  (asked ??= fetch("/bugs/config", { credentials: "same-origin" })
+    .then((r) => (r.ok ? r.json() : {}))
+    .then(
+      (c: { enabled?: boolean; tidy?: boolean }) => ({ enabled: c.enabled === true, tidy: c.enabled === true && c.tidy === true }),
+      () => ({ enabled: false, tidy: false }),
+    ));
+
+/** Ask the card room to tidy what the player wrote. Throws with words for the player. */
+async function tidy(input: { kind: "bug"; description: string } | { kind: "game"; game: string; note: string }): Promise<Tidied> {
+  let response: Response;
+  try {
+    response = await fetch("/bugs/tidy", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input.kind === "bug" ? { ...input, ...context } : input),
+    });
+  } catch {
+    throw new Error("Couldn't reach the card room to tidy it.");
+  }
+  const data = (await response.json().catch(() => ({}))) as Partial<Tidied> & { error?: string };
+  if (!response.ok || data.kind !== input.kind) throw new Error(data.error ?? "It couldn't be tidied just now.");
+  return data as Tidied;
+}
+
 export const bugs = {
   /** Whether this card room takes reports: asked once. False on a copy of the app with no server. */
-  enabled: () =>
-    (asked ??= fetch("/bugs/config", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : { enabled: false }))
-      .then((c: { enabled?: boolean }) => c.enabled === true, () => false)),
-  async send(report: { description: string; screenshot: string | null; browser: BrowserInfo | null }): Promise<SentReport> {
+  enabled: () => config().then((c) => c.enabled),
+  /** Whether it can tidy a report (or a game request) with its AI key before it's sent. */
+  canTidy: () => config().then((c) => c.tidy),
+  tidy,
+  /**
+   * `title` and `original` come from a tidy-up: the title the player kept, and what they first wrote
+   * (sent along with the tidied words, folded away in the issue).
+   */
+  async send(report: { description: string; title?: string; original?: string; screenshot: string | null; browser: BrowserInfo | null }): Promise<SentReport> {
     let response: Response;
     try {
       response = await fetch("/bugs", {
@@ -161,10 +194,10 @@ export const bugs = {
 };
 
 /** "Ask for a game", from the front page's footer: the server files it, or adds to the request already open. */
-export async function askForGame(game: string, note: string): Promise<SentReport & { again: boolean }> {
+export async function askForGame(game: string, note: string, original?: { game: string; note: string }): Promise<SentReport & { again: boolean }> {
   let response: Response;
   try {
-    response = await fetch("/bugs/game", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ game, note }) });
+    response = await fetch("/bugs/game", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ game, note, original }) });
   } catch {
     throw new Error("Couldn't reach the card room. Check your connection and try again.");
   }
