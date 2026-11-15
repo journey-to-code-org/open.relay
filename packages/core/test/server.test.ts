@@ -170,7 +170,7 @@ describe("reporting a problem", () => {
     };
     const { status } = await pest("/lobby/join", { game: "gin", name: "Pest" });
     expect(status).toBe(201);
-    // The card room's host blocks them in the admin app.
+    // The parlor's host blocks them in the admin app.
     const blocked = await app.fetch(
       new Request(`${BASE}/moderation/players/${playerRef(cookie.split("=")[1]!)}/block`, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer a-long-admin-token" }, body: JSON.stringify({ reason: "spam" }) }),
     );

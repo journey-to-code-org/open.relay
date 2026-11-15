@@ -1,6 +1,6 @@
 // "Report a problem": a player says what went wrong from inside the app, and the server opens an
 // issue for it on GitHub. Nobody needs a GitHub account: the server has a token (CARDROOM_GITHUB_TOKEN)
-// that may open issues on the card room's repository, and that token never leaves it.
+// that may open issues on the parlor's repository, and that token never leaves it.
 //
 // The issue is public, so it is built from as little as explains the problem: the player's own words,
 // where they were (which screen, which game), what the page had logged going wrong, and, only when
@@ -11,7 +11,7 @@
 // "Ask for a game" (the front page's footer) comes the same way: a game's name and a note become an
 // issue labelled "game request", or a comment on the open request for that game.
 //
-// Before either is sent, the card room's AI key (when it has one) can tidy it: a clear title and a
+// Before either is sent, the parlor's AI key (when it has one) can tidy it: a clear title and a
 // concise report from the player's words, or a game's proper name and a short note. The page shows the
 // player the tidied version to keep, change, put back to their own words, or turn down; nothing is
 // sent until they say so. When a tidied version goes, the player's own words go with it, folded away.
@@ -45,7 +45,7 @@ export interface BugOptions {
   /** Reports one browser may send in ten minutes, and everyone together in a day. */
   each?: number;
   daily?: number;
-  /** Tidies a report or request with the card room's AI key; leave it out when there's no key. */
+  /** Tidies a report or request with the parlor's AI key; leave it out when there's no key. */
   tidy?: (input: TidyInput) => Promise<Tidied | null>;
   /** Tidy-ups one browser may ask for in ten minutes. */
   tidies?: number;
@@ -164,7 +164,7 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
   const docs = rooms.sync.documents();
 
   // Anyone can reach this without signing in to anything, and every report becomes a public issue:
-  // so a browser gets a few, and the whole card room gets a day's worth.
+  // so a browser gets a few, and the whole parlor gets a day's worth.
   const sent = new Map<string, number[]>();
   let today: number[] = [];
   function tooMany(who: string): string | null {
@@ -173,7 +173,7 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
     const mine = (sent.get(who) ?? []).filter((t) => at - t < 600_000);
     sent.set(who, mine);
     if (mine.length >= each) return "That's a few reports in a row. Thank you! Give it ten minutes before the next.";
-    if (today.length >= daily) return "The card room has had a lot of reports today. Try again tomorrow.";
+    if (today.length >= daily) return "The parlor has had a lot of reports today. Try again tomorrow.";
     return null;
   }
   function count(who: string) {
@@ -247,7 +247,7 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
 
   /** POST /bugs/tidy: the player's words, tidied for the developers, for them to look over. */
   async function tidy(request: Request): Promise<Response> {
-    if (!tidier) return json({ error: "Tidying isn't on in this card room." }, 503);
+    if (!tidier) return json({ error: "Tidying isn't on in this parlor." }, 503);
     const who = playerOf(request) ?? `ip:${request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"}`;
     const at = now();
     const mine = (tidied.get(who) ?? []).filter((t) => at - t < 600_000);
@@ -275,7 +275,7 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
    * open) gets a comment, not a second issue, so the issue's comments count how many want it.
    */
   async function askForGame(request: Request): Promise<Response> {
-    if (!enabled) return json({ error: "This card room can't take requests yet." }, 503);
+    if (!enabled) return json({ error: "This parlor can't take requests yet." }, 503);
     const who = playerOf(request) ?? `ip:${request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"}`;
     const wait = tooMany(who);
     if (wait) return json({ error: wait.replace("reports", "requests") }, 429);
@@ -292,7 +292,7 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
 
     const asked = (await github<Issue[]>("GET", `/issues?state=open&labels=${encodeURIComponent(GAME_LABEL)}&per_page=100`)) ?? [];
     const already = asked.find((i) => !i.pull_request && typeof i.number === "number" && sameGame((i.title ?? "").replace(/^Game request:/i, "")) === sameGame(game));
-    const sent = `_Sent from inside Card Room with “Ask for a game”, ${new Date(now()).toISOString().slice(0, 10)}.${tidyMark}_`;
+    const sent = `_Sent from inside open.parlor with “Ask for a game”, ${new Date(now()).toISOString().slice(0, 10)}.${tidyMark}_`;
     if (already) {
       const said = await github<{ id?: number }>("POST", `/issues/${already.number}/comments`, { body: ["Another player asked for this.", ...(note ? ["", quote(note)] : []), "", ...theirWords, sent].join("\n") });
       if (!said) return json({ error: "The request couldn't be sent just now. Try again in a minute." }, 502);
@@ -307,7 +307,7 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
   }
 
   async function report(request: Request): Promise<Response> {
-    if (!enabled) return json({ error: "This card room can't take reports yet." }, 503);
+    if (!enabled) return json({ error: "This parlor can't take reports yet." }, 503);
     if (Number(request.headers.get("content-length") ?? 0) > REPORT_LIMIT) return json({ error: "That report is too big to send." }, 413);
     const player = playerOf(request);
     const who = player ?? `ip:${request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"}`;
@@ -352,7 +352,7 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
       ...(aboutTable ? [details("The table", fence(aboutTable.join("\n"))), ""] : []),
       ...(browser ? [details("Browser", fence(browser)), ""] : []),
       ...(rewritten ? [details("The player's own words", quote(original)), ""] : []),
-      `_Sent from inside Card Room with “Report a problem”.${rewritten ? " Tidied with AI; the player looked it over before sending." : ""}${shot ? "" : " No screenshot."}${browser ? "" : " The player chose not to share browser details."}_`,
+      `_Sent from inside open.parlor with “Report a problem”.${rewritten ? " Tidied with AI; the player looked it over before sending." : ""}${shot ? "" : " No screenshot."}${browser ? "" : " The player chose not to share browser details."}_`,
     ].join("\n");
 
     const issue = await github<Issue>("POST", "/issues", { title: plain(title), body, labels: ["bug", "player report"] });
@@ -379,7 +379,7 @@ export function createBugs(rooms: Rooms, options: BugOptions = {}) {
       if (action === "tidy" && request.method === "POST") return tidy(request);
       // POST /bugs { description?, title?, original?, screen?, game?, table?, built?, errors?, browser?, screenshot? } → { number, url }
       if (action === "" && request.method === "POST") return report(request);
-      // POST /bugs/game { game, note? } → { number, url, again }: ask for a game the card room doesn't have
+      // POST /bugs/game { game, note? } → { number, url, again }: ask for a game the parlor doesn't have
       if (action === "game" && request.method === "POST") return askForGame(request);
       // GET /bugs/shots/<id>.jpg → a screenshot an issue links to
       const shot = action.match(/^shots\/([a-z0-9]{20})\.jpg$/);
