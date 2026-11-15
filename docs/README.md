@@ -30,6 +30,7 @@ Their text is escaped so it can't `@mention` anyone, reference other issues, inj
 
 - [Getting started](getting-started.md): both halves running in about ten minutes.
 - [The server](server.md), [the client](client.md) and [the interface](ui.md): every option, in the order you will need them.
+- [Try it](try-it.md): the button on these pages is open.relay, filing demo issues.
 - [Tidying with a model](tidying.md): optional, and you bring the model.
 - [The HTTP API](http-api.md): the routes, for a client in another language.
 - [Releasing](releasing.md): how a version reaches npm.

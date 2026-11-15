@@ -57,5 +57,8 @@
     "output": "dist",
     "themes": "../.open.blog/themes",
     "web": "../.open.blog/web"
+  },
+  "snippets": {
+    "bodyEnd": "<script type=\"module\" src=\"https://journey-to-code-org.github.io/open.relay/relay-widget.js\" data-relay=\"\"></script>"
   }
 }

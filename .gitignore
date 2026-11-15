@@ -6,4 +6,5 @@ dist
 # documentation site
 docs-site/content/docs
 docs-site/dist
+docs-site/static/relay-widget.js
 .open.blog
