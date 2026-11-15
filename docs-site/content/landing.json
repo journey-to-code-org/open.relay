@@ -1,0 +1,18 @@
+{
+  "format": "openblog-landing",
+  "version": 1,
+  "sections": [
+    {
+      "id": "welcome",
+      "type": "welcome",
+      "heading": "open.relay",
+      "subheading": "A button in your app that turns what people tell you into a GitHub issue, with the context you would have asked for. A server, a client, and optional interface parts.",
+      "button": { "label": "Read the docs", "href": "/docs/", "style": "primary" }
+    },
+    {
+      "id": "start",
+      "type": "rich-text",
+      "markdown": "New here? Start with [Getting started](/docs/getting-started/). Building with an agent? See [For agents](/docs/agents/). Wondering what the packages depend on? [What uses the Signals API](/docs/signals/) answers it."
+    }
+  ]
+}

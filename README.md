@@ -2,7 +2,9 @@
 
 Let people report a bug or ask for a feature from inside your app, with no GitHub account. Your server turns what they send into an issue.
 
-It began as the "Report a problem" and "Ask for a game" buttons in [open.parlor](https://github.com/journey-to-code-org/open.parlor), and was pulled out because it kept proving useful.
+It began as the "Report a problem" and "Ask for a game" buttons in a card-game website, and was pulled out because it kept proving useful.
+
+**Documentation: <https://journey-to-code-org.github.io/open.relay/>** (the pages are in [`docs/`](docs/README.md)). Coding agents: see [`AGENTS.md`](AGENTS.md) and [`.agents/skills`](.agents/skills).
 
 Two packages:
 

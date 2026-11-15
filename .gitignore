@@ -2,3 +2,8 @@ node_modules
 dist
 *.tsbuildinfo
 .env
+
+# documentation site
+docs-site/content/docs
+docs-site/dist
+.open.blog
