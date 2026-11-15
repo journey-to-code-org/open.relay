@@ -41,7 +41,7 @@ describe("reporting a problem", () => {
   it("is off, and says so, until the server has a token", async () => {
     const { phone, asked } = setup({ token: "" });
     const me = phone();
-    expect((await me("/bugs/config")).body).toEqual({ enabled: false });
+    expect((await me("/bugs/config")).body).toEqual({ enabled: false, tidy: false });
     expect((await me("/bugs", { description: "Hello" })).status).toBe(503);
     expect(asked).toEqual([]);
   });
@@ -49,7 +49,7 @@ describe("reporting a problem", () => {
   it("opens an issue from a player's words, and tells them its number", async () => {
     const { phone, asked } = setup();
     const me = phone();
-    expect((await me("/bugs/config")).body).toEqual({ enabled: true });
+    expect((await me("/bugs/config")).body).toEqual({ enabled: true, tidy: false });
     const sent = await me("/bugs", { description: "The cards overlap on my phone.\nI couldn't tap the ace.", screen: "table", game: "spades", built: "2026-11-14T09:00Z" });
     expect(sent).toMatchObject({ status: 201, body: { ok: true, number: 41, url: "https://github.com/o/r/issues/41" } });
 
@@ -234,3 +234,44 @@ describe("asking for a game", () => {
     expect(await one.ask({ game: "Go" })).toMatchObject({ status: 429, body: { error: expect.stringContaining("tomorrow") } });
   });
 });
+
+describe("tidying before sending", () => {
+  const tidied = { kind: "bug" as const, title: "Palace: can draw before playing on a 10", report: "- After a 10 or a 2, the player draws before playing on top.\n- Toggles look broken." };
+  const tidy = async (input: { kind: string }) => (input.kind === "bug" ? tidied : { kind: "game" as const, game: "Mahjong", note: "Hong Kong style, four players." });
+
+  it("tidies a report for the player to look over, and sends nothing", async () => {
+    const { phone, asked } = setup({ tidy });
+    const me = phone();
+    expect((await me("/bugs/config")).body).toEqual({ enabled: true, tidy: true });
+    const answer = await me("/bugs/tidy", { kind: "bug", description: "in palace you can draw after a 10, and the toggles are broken", screen: "table", game: "palace" });
+    expect(answer).toMatchObject({ status: 200, body: tidied });
+    expect((await me("/bugs/tidy", { kind: "game", game: "mah jong", note: "hk style" })).body).toMatchObject({ game: "Mahjong" });
+    expect(asked).toEqual([]);
+    expect((await me("/bugs/tidy", { kind: "bug", description: "broken" })).status).toBe(400);
+  });
+
+  it("is off without an AI key, says so when it fails, and takes only so many", async () => {
+    expect((await setup().phone()("/bugs/tidy", { kind: "bug", description: "The cards overlap on my phone." })).status).toBe(503);
+    const failing = setup({ tidy: async () => null }).phone();
+    expect(await failing("/bugs/tidy", { kind: "bug", description: "The cards overlap on my phone." })).toMatchObject({ status: 502, body: { error: expect.stringContaining("own words") } });
+    const busy = setup({ tidy, tidies: 1 }).phone();
+    expect((await busy("/bugs/tidy", { kind: "bug", description: "The cards overlap on my phone." })).status).toBe(200);
+    expect((await busy("/bugs/tidy", { kind: "bug", description: "The cards overlap on my phone." })).status).toBe(429);
+  });
+
+  it("sends the player's chosen title and words, with what they first wrote folded away", async () => {
+    const { phone, asked } = setup({ tidy });
+    const me = phone();
+    await me("/bugs", { title: "Palace: @someone #12 draws early", description: tidied.report, original: "in palace you can draw after a 10" });
+    const issue = asked[0]!.body;
+    expect(issue.title).toBe("Palace: @​someone \\#12 draws early");
+    expect(issue.body.startsWith("> - After a 10 or a 2")).toBe(true);
+    expect(issue.body).toContain("<summary>The player's own words</summary>\n\n> in palace you can draw after a 10");
+    expect(issue.body).toContain("Tidied with AI");
+    // Put back to their own words: nothing extra.
+    await me("/bugs", { description: "The cards overlap.", original: "The cards overlap." });
+    expect(asked[1]!.body.body).not.toContain("own words");
+    expect(asked[1]!.body.body).not.toContain("Tidied");
+  });
+});
+
