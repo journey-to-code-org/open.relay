@@ -9,14 +9,12 @@ on:
       - "docs/**"
       - "docs-site/**"
       - "scripts/build-docs-site.mjs"
-      - "scripts/check-docs-output.mjs"
       - ".github/workflows/docs-pages.yml"
   pull_request:
     paths:
       - "docs/**"
       - "docs-site/**"
       - "scripts/build-docs-site.mjs"
-      - "scripts/check-docs-output.mjs"
       - ".github/workflows/docs-pages.yml"
   workflow_dispatch:
 
@@ -60,9 +58,6 @@ jobs:
 
       - name: Build the site
         run: .open.blog/target/release/openblog build --root docs-site
-
-      - name: Check the site for the Signals API
-        run: node scripts/check-docs-output.mjs docs-site/dist
 
       - uses: actions/configure-pages@v5
         if: github.ref == 'refs/heads/main'

@@ -12,7 +12,7 @@
     {
       "id": "start",
       "type": "rich-text",
-      "markdown": "New here? Start with [Getting started](/docs/getting-started/). Building with an agent? See [For agents](/docs/agents/). Wondering what the packages depend on? [What uses the Signals API](/docs/signals/) answers it."
+      "markdown": "New here? Start with [Getting started](/docs/getting-started/). Building with an agent? See [For agents](/docs/agents/)."
     }
   ]
 }

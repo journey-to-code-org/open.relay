@@ -45,7 +45,6 @@ Do not guess these. Ask if the project does not show them.
 
 - Put the token, a person's name, email or cookie in an issue, a `ref` or `enrich`.
 - Raise `each`, `daily` or `reportLimit` without a reason. They protect the GitHub API and the repository from spam.
-- Use or add anything built on the Signals API. See `docs/signals.md`.
 
 ## Reference
 

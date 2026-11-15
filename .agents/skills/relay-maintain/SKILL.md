@@ -15,7 +15,7 @@ Finish a change only when `npm run typecheck` and `npm test` both pass.
 
 ## Rules that are easy to break
 
-- **No Signals API** in either package, in source or dependencies. `packages/core/test/no-signals.test.ts` fails if it appears; change it only together with `docs/signals.md`.
+- **No Signals API** in either package, in source or dependencies. `packages/core/test/no-signals.test.ts` fails if it appears (the TC39 proposal is Stage 1 and not for production).
 - **Nothing identifying in a public issue.** Server output must not contain a token, IP, cookie or a `ref`. `enrich` lines are public by design.
 - **Person-facing errors** are plain sentences the client shows as they are. Keep that when adding a failure.
 - **The client wraps `console.error`.** Keep `watchForErrors` reversible.

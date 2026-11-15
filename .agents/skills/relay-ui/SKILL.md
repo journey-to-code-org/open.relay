@@ -40,7 +40,6 @@ description: Put an open.relay report or request button in an interface. Use whe
 
 - Open a report sheet before the flow has taken its picture; use `flow.open()`, which does it in order.
 - Pre-tick the screenshot or browser-details choice to hide it. They are the person's to allow.
-- Wrap flows in signals or add a library built on the Signals API without deciding on purpose. See `docs/signals.md`.
 
 ## Reference
 

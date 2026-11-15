@@ -1,5 +1,5 @@
 // Neither package may use the TC39 Signals proposal (Stage 1; its reference polyfill says not to use it in
-// production), or a library built on it. docs/signals.md says so; this keeps it true.
+// production), or a library built on it (Zubra's runtime is). Nothing here needs one; this keeps it so.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
