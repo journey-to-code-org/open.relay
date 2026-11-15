@@ -33,7 +33,6 @@ Their text is escaped so it can't `@mention` anyone, reference other issues, inj
 - [Try it](try-it.md): the button on these pages is open.relay, filing demo issues.
 - [Tidying with a model](tidying.md): optional, and you bring the model.
 - [The HTTP API](http-api.md): the routes, for a client in another language.
-- [Releasing](releasing.md): how a version reaches npm.
 - [For agents](agents.md): the skills in `.agents/` that let a coding agent use and maintain this.
 
 ## Status

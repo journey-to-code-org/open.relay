@@ -135,7 +135,7 @@ npm run typecheck
 
 ## Releasing
 
-Bump `version` in the package(s) that changed, in a PR. When it reaches `main`, [`release.yml`](.github/workflows/release.yml) builds and tests, publishes whatever isn't on npm yet (`relay` before `relay-ui`, which needs it), and tags and releases each as `relay-v<version>` / `relay-ui-v<version>`. No token is stored: npm trusts that workflow. It's [release-on-bump](https://github.com/journey-to-code-org/release-on-bump), and it can be run again from the Actions tab if it stops partway.
+Bump `version` in the package(s) that changed, in a PR. When it reaches `main`, [`release.yml`](.github/workflows/release.yml) builds and tests, publishes whatever isn't on npm yet (`relay` before `relay-ui`, which needs it), and tags and releases each as `relay-v<version>` / `relay-ui-v<version>`. No token is stored: npm trusts that workflow. It's [release-on-bump](https://github.com/journey-to-code-org/release-on-bump), and it can be run again from the Actions tab if it stops partway. Details in [RELEASING.md](RELEASING.md).
 
 ## Status
 
