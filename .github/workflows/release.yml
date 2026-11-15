@@ -2,7 +2,7 @@
 # yet is published, in the order they depend on each other, with provenance, and then each package
 # gets a tag (`relay-v0.1.1`) and a GitHub release with generated notes. Pushes that don't change a
 # version do nothing. The build, types and tests run first, so a broken main publishes nothing.
-# The work is journey-to-code-org/auto-release-action; this file is what npm trusts.
+# The work is journey-to-code-org/release-on-bump; this file is what npm trusts.
 #
 # It can be run again from the Actions tab, on main only. A package already on npm is skipped, and
 # a version that has no GitHub release yet is given one, so re-running finishes whatever is missing.
@@ -36,6 +36,6 @@ jobs:
       id-token: write # trusted publishing, and npm's provenance
     steps:
       - uses: actions/checkout@v4
-      - uses: journey-to-code-org/auto-release-action@v1
+      - uses: journey-to-code-org/release-on-bump@v1
         with:
           tag-format: "{name}-v{version}" # relay-v0.1.1, relay-ui-v0.1.1
