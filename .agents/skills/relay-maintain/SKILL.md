@@ -1,6 +1,6 @@
 ---
 name: relay-maintain
-description: Work on the open.relay repository itself. Use when changing the packages, running tests, editing docs/, keeping the no-Signals rule, or releasing a new version.
+description: Work on the open.relay repository itself. Use when changing the packages, running tests, editing docs/, or releasing a new version.
 ---
 
 Two npm packages in a workspace: `packages/core` (`@journey-to-code/relay`: server, client, tidy) and `packages/ui` (`@journey-to-code/relay-ui`: flows, React, CSS). Node 22.12 or later.
@@ -15,7 +15,6 @@ Finish a change only when `npm run typecheck` and `npm test` both pass.
 
 ## Rules that are easy to break
 
-- **No Signals API** in either package, in source or dependencies. `packages/core/test/no-signals.test.ts` fails if it appears; change it only together with `docs/signals.md`.
 - **Nothing identifying in a public issue.** Server output must not contain a token, IP, cookie or a `ref`. `enrich` lines are public by design.
 - **Person-facing errors** are plain sentences the client shows as they are. Keep that when adding a failure.
 - **The client wraps `console.error`.** Keep `watchForErrors` reversible.

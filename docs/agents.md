@@ -15,7 +15,7 @@ A coding agent can use and maintain open.relay with the skills in [`.agents/`](h
 | `relay-server` | Add `createRelay` to a server: the token, mounting, identity and limits, the store, `enrich`, labels, and tidying with a model. |
 | `relay-client` | Add the browser client: context, error capture, screenshots, and what must be asked before they are sent. |
 | `relay-ui` | Put a report or request button in an interface: the React sheets, restyling, re-wording, swapping parts, or building your own on the flows. |
-| `relay-maintain` | Work on this repository: tests, the docs, the Signals rule, and cutting a release. |
+| `relay-maintain` | Work on this repository: tests, the docs, and cutting a release. |
 
 Each one says when to use it, the steps, and how to tell it worked. They are written for a project that already has a server and a front end, and say what to ask before guessing (where the server mounts, who identifies a person, which design system the sheets should match).
 
@@ -24,7 +24,6 @@ Each one says when to use it, the steps, and how to tell it worked. They are wri
 - **The token stays on the server.** It is never put in a client, a bundle or an issue.
 - **Nothing identifying goes in a public issue.** Not a name, an address, a cookie, or a `ref`. `enrich` lines are public.
 - **A picture and browser details are the person's to allow**, separately, each time.
-- **No Signals API.** See [What uses the Signals API](signals.md).
 
 ## Editing these docs
 

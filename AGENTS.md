@@ -9,4 +9,4 @@ Lets the people who use an app report problems and ask for things from inside it
 
 Commands: `npm test`, `npm run typecheck` (Node 22.12 or later). Both must pass before a change is done.
 
-Rules: no Signals API in either package (`docs/signals.md`); nothing identifying in public issues; docs change with the code. `relay-maintain` has the rest, including releasing.
+Rules: nothing identifying in public issues; docs change with the code. `relay-maintain` has the rest, including releasing.

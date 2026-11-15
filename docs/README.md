@@ -33,7 +33,6 @@ Their text is escaped so it can't `@mention` anyone, reference other issues, inj
 - [Tidying with a model](tidying.md): optional, and you bring the model.
 - [The HTTP API](http-api.md): the routes, for a client in another language.
 - [Releasing](releasing.md): how a version reaches npm.
-- [What uses the Signals API](signals.md): nothing in these packages does, and this page says exactly what to watch for.
 - [For agents](agents.md): the skills in `.agents/` that let a coding agent use and maintain this.
 
 ## Status
