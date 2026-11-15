@@ -22,7 +22,7 @@
 //   bugs/shot-<id>   server only: one screenshot (served at <mount>/shots/<id>.jpg)
 //   bugs/shots       server only: when each was taken, for dropping the oldest
 //   bugs/reports     server only: issue number → the table it was sent from
-import { playerOf, type RoomDoc } from "@spades/rooms/server";
+import { playerOf, type RoomDoc } from "@journey-to-code/rooms/server";
 import { gameName, gameOfOptions } from "./games.js";
 import type { TidyInput, Tidied } from "./ai.js";
 
