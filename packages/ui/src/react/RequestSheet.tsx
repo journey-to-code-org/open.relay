@@ -1,5 +1,5 @@
 // "Ask for a game": a line in the front page's footer opens this sheet. A game's name and, if they
-// like, a note; the card room files the request on GitHub for them (see the server's bugs.ts). With an
+// like, a note; the parlor files the request on GitHub for them (see the server's bugs.ts). With an
 // AI key, "Next" first tidies it (the game's proper name, a short note) for them to look over.
 import TextField from "@open-parlor/ui/zubra-ui/text-field.zb";
 import { useEffect, useState } from "react";
@@ -43,7 +43,7 @@ export function GameRequest() {
 
   if (!open) return null;
 
-  // A game the card room already has needs no request.
+  // A game the parlor already has needs no request.
   const already = (name: string) => (name.trim() ? arranged(GAME_LIST).find((g) => plainName(g.name) === plainName(name)) : undefined);
   const have = already(draft ? draft.game : game);
   const send = async () => {
@@ -60,7 +60,7 @@ export function GameRequest() {
     }
     setSending(false);
   };
-  /** "Next": tidy the request first when the card room can, else send it as it is. */
+  /** "Next": tidy the request first when the parlor can, else send it as it is. */
   const next = async () => {
     if (!canTidy) return send();
     const original = { game: game.trim(), note: note.trim() };
@@ -199,7 +199,7 @@ export function GameRequest() {
               </span>
               <textarea rows={3} maxLength={NOTE_LIMIT} value={note} placeholder="How your family plays it, how many players, a rule you can't do without…" onChange={(e) => setNote(e.target.value)} />
             </label>
-            <p className="fine">Requests are posted where anyone can read them, so the people who work on Card Room can see what to build next. Yours never includes your name.</p>
+            <p className="fine">Requests are posted where anyone can read them, so the people who work on open.parlor can see what to build next. Yours never includes your name.</p>
             {problem && (
               <p className="error" role="alert">
                 {problem}

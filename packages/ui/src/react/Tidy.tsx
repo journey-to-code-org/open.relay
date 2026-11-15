@@ -1,11 +1,11 @@
-// Tidying what a player sends the developers ("Report a problem", "Ask for a game"). When the card room
+// Tidying what a player sends the developers ("Report a problem", "Ask for a game"). When the parlor
 // has an AI key, the player's words come back as a clear title and a concise report (or a game's proper
 // name and a short note) for them to look over. They can change any of it, put their own words back,
 // or go back and start again; nothing is sent until they press Send.
 import { useEffect, useState } from "react";
 import { bugs } from "./bugReport";
 
-/** Whether this card room can tidy a report before it's sent (false until the server has said so). */
+/** Whether this parlor can tidy a report before it's sent (false until the server has said so). */
 export function useTidy() {
   const [can, setCan] = useState(false);
   useEffect(() => void bugs.canTidy().then(setCan), []);

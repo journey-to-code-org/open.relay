@@ -135,7 +135,7 @@ export interface SentReport {
   url: string;
 }
 
-/** A report or request as the card room's AI tidied it, for the player to look over. */
+/** A report or request as the parlor's AI tidied it, for the player to look over. */
 export type Tidied = { kind: "bug"; title: string; report: string } | { kind: "game"; game: string; note: string };
 
 let asked: Promise<{ enabled: boolean; tidy: boolean }> | null = null;
@@ -147,7 +147,7 @@ const config = () =>
       () => ({ enabled: false, tidy: false }),
     ));
 
-/** Ask the card room to tidy what the player wrote. Throws with words for the player. */
+/** Ask the parlor to tidy what the player wrote. Throws with words for the player. */
 async function tidy(input: { kind: "bug"; description: string } | { kind: "game"; game: string; note: string }): Promise<Tidied> {
   let response: Response;
   try {
@@ -158,7 +158,7 @@ async function tidy(input: { kind: "bug"; description: string } | { kind: "game"
       body: JSON.stringify(input.kind === "bug" ? { ...input, ...context } : input),
     });
   } catch {
-    throw new Error("Couldn't reach the card room to tidy it.");
+    throw new Error("Couldn't reach the parlor to tidy it.");
   }
   const data = (await response.json().catch(() => ({}))) as Partial<Tidied> & { error?: string };
   if (!response.ok || data.kind !== input.kind) throw new Error(data.error ?? "It couldn't be tidied just now.");
@@ -166,7 +166,7 @@ async function tidy(input: { kind: "bug"; description: string } | { kind: "game"
 }
 
 export const bugs = {
-  /** Whether this card room takes reports: asked once. False on a copy of the app with no server. */
+  /** Whether this parlor takes reports: asked once. False on a copy of the app with no server. */
   enabled: () => config().then((c) => c.enabled),
   /** Whether it can tidy a report (or a game request) with its AI key before it's sent. */
   canTidy: () => config().then((c) => c.tidy),
@@ -185,7 +185,7 @@ export const bugs = {
         body: JSON.stringify({ ...report, ...context, built: typeof __BUILT__ === "string" ? __BUILT__ : "", errors }),
       });
     } catch {
-      throw new Error("Couldn't reach the card room. Check your connection and try again.");
+      throw new Error("Couldn't reach the parlor. Check your connection and try again.");
     }
     const data = (await response.json().catch(() => ({}))) as Partial<SentReport> & { error?: string };
     if (!response.ok || typeof data.number !== "number") throw new Error(data.error ?? "The report couldn't be sent just now. Try again in a minute.");
@@ -199,7 +199,7 @@ export async function askForGame(game: string, note: string, original?: { game: 
   try {
     response = await fetch("/bugs/game", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ game, note, original }) });
   } catch {
-    throw new Error("Couldn't reach the card room. Check your connection and try again.");
+    throw new Error("Couldn't reach the parlor. Check your connection and try again.");
   }
   const data = (await response.json().catch(() => ({}))) as Partial<SentReport> & { error?: string; again?: boolean };
   if (!response.ok || typeof data.number !== "number") throw new Error(data.error ?? "The request couldn't be sent just now. Try again in a minute.");

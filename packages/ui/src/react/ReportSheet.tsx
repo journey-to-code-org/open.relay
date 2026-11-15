@@ -1,8 +1,8 @@
 // "Report a problem", on every screen: a small button, and the sheet it opens. The player writes a
 // line (or nothing), says yes or no to a picture of the screen and to their browser's details, and
-// sends. The card room files it on GitHub for them; they never leave the page.
+// sends. The parlor files it on GitHub for them; they never leave the page.
 //
-// When the card room has an AI key, "Send" first tidies their words: a title and a concise report for
+// When the parlor has an AI key, "Send" first tidies their words: a title and a concise report for
 // the developers. They look it over (and can change it, or put their own words back) before it goes.
 import ToggleSwitch from "@open-parlor/ui/zubra-ui/toggle-switch.zb";
 import { useEffect, useRef, useState } from "react";
@@ -19,7 +19,7 @@ const titleOf = (words: string) => {
   return first.length > 80 ? `${first.slice(0, 79).trimEnd()}…` : first;
 };
 
-/** Whether this card room takes reports (false until the server has said so). */
+/** Whether this parlor takes reports (false until the server has said so). */
 export function useReports() {
   const [enabled, setEnabled] = useState(false);
   useEffect(() => void bugs.enabled().then(setEnabled), []);
@@ -139,7 +139,7 @@ export function ReportProblem() {
     }
   };
 
-  /** "Send" from the first step: tidy the words first when the card room can, else send them as they are. */
+  /** "Send" from the first step: tidy the words first when the parlor can, else send them as they are. */
   const next = async () => {
     const mine = description.trim();
     if (!canTidy || mine.length < TIDY_FROM) return send();
@@ -332,7 +332,7 @@ export function ReportProblem() {
                 </div>
 
                 <p className="fine">
-                  Reports are posted where anyone can read them, so the people who work on Card Room can fix things. Yours also says which game and screen you were on and any
+                  Reports are posted where anyone can read them, so the people who work on open.parlor can fix things. Yours also says which game and screen you were on and any
                   errors the page ran into. It never includes your name.
                   {canTidy && " Next, you'll see it tidied up for the developers, and you can change it before it's sent."}
                 </p>
