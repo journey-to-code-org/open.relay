@@ -1,70 +1,33 @@
-// "Report a problem": what the page gathers for a report, and sending it. The server turns a report
-// into an issue on GitHub (see the server's bugs.ts), so nobody needs an account anywhere.
+// What the page gathers for a report, and sending it. The server (see ./server) turns a report into an
+// issue on GitHub, so nobody needs an account anywhere.
 //
-// Gathered without asking, because none of it says who you are: which screen and game you were on,
-// when this copy of the page was built, and the last few errors the page logged. Gathered only if
-// you say yes to each: a picture of the screen, and your browser's details.
+// Gathered without asking, because none of it says who you are: which screen you were on, when this
+// copy of the page was built, and the last few errors the page logged. Gathered only if you say yes to
+// each: a picture of the screen, and your browser's details.
+import type { BrowserInfo, RelayContext, SentReport, SentRequest, Tidied } from "./types.js";
 
-declare const __BUILT__: string;
-
-// ---- Where the player is -------------------------------------------------------------------------
-
-export interface BugContext {
-  /** The screen, in a word or two: "home", "table", "practice table"… */
-  screen: string;
-  game?: string;
-  /** A table on the server. It stays between the page and the server; an issue never shows it. */
-  table?: string;
-}
-let context: BugContext = { screen: "home" };
-/** The app says where it is as it moves between screens. */
-export const setBugContext = (next: BugContext) => void (context = next);
-
-// ---- Errors the page logged ----------------------------------------------------------------------
-
-const ERRORS_KEPT = 10;
-const errors: string[] = [];
-function note(kind: string, problem: unknown) {
-  const e = problem as { message?: unknown; stack?: unknown } | null;
-  const message = typeof e?.message === "string" ? e.message : String(problem);
-  // A stack usually starts with the message; when it does, the stack alone says both.
-  const stack = typeof e?.stack === "string" ? e.stack.split("\n").slice(0, 8).join("\n") : "";
-  const text = stack.includes(message) ? stack : [message, stack].filter(Boolean).join("\n");
-  const at = new Date().toISOString().slice(11, 19);
-  errors.push(`${at} ${kind}: ${text}`.slice(0, 1200));
-  if (errors.length > ERRORS_KEPT) errors.shift();
+export interface RelayClientOptions {
+  /** Where the server mounted the relay. Default "/relay". */
+  base?: string;
+  /** When this copy of the page was built, for the issue. */
+  built?: string;
+  /** How requests are made, and with what credentials (so your server can tell who is asking). */
+  fetch?: typeof fetch;
+  credentials?: RequestCredentials;
 }
 
-/** Remember the last few things that went wrong on this page, in case the player reports a problem. */
-export function watchForErrors() {
-  addEventListener("error", (e) => note("error", e.error ?? e.message));
-  addEventListener("unhandledrejection", (e) => note("unhandled rejection", e.reason));
-  const original = console.error;
-  console.error = (...args: unknown[]) => {
-    try {
-      note("console.error", args.length === 1 ? args[0] : args.map((a) => (a instanceof Error ? a.message : typeof a === "string" ? a : JSON.stringify(a))).join(" "));
-    } catch {
-      /* something that can't be put into words */
-    }
-    original.apply(console, args);
-  };
+export interface ReportToSend {
+  description: string;
+  /** The title the person kept from a tidy-up. */
+  title?: string;
+  /** What they first wrote, sent along with the tidied words and folded away in the issue. */
+  original?: string;
+  screenshot: string | null;
+  browser: BrowserInfo | null;
 }
-/** Note a problem by hand (the screen that crashed, say). */
-export const noteError = note;
 
 // ---- The browser's details ------------------------------------------------------------------------
 
-export interface BrowserInfo {
-  userAgent: string;
-  platform: string;
-  viewport: string;
-  screen: string;
-  language: string;
-  installed: boolean;
-  touch: boolean;
-  online: boolean;
-  reducedMotion: boolean;
-}
 export function browserInfo(): BrowserInfo {
   const uaData = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
   return {
@@ -79,7 +42,8 @@ export function browserInfo(): BrowserInfo {
     reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
   };
 }
-/** The same details as the lines a player is shown before agreeing to send them. */
+
+/** The same details as the lines a person is shown before agreeing to send them. */
 export const browserLines = (info: BrowserInfo): [string, string][] => [
   ["Browser", info.userAgent],
   ["Device", info.platform],
@@ -92,13 +56,15 @@ export const browserLines = (info: BrowserInfo): [string, string][] => [
 
 // ---- A picture of the screen ----------------------------------------------------------------------
 
-/** Wide enough to read a card's corner; small enough to send from a phone on a poor connection. */
+/** Wide enough to read small print; small enough to send from a phone on a poor connection. */
 const SHOT_WIDTH = 1100;
 const SHOT_BYTES = 450_000;
 
 /**
- * The page as a JPEG (a data: address), or null when this browser can't draw it. It's drawn from the
- * page's own elements, so the browser asks the player nothing, and nothing outside the page is in it.
+ * The page as a JPEG (a data: address), or null when this browser can't draw it, or when the optional
+ * `modern-screenshot` package isn't installed. It's drawn from the page's own elements, so the browser
+ * asks the person nothing, and nothing outside the page is in it. Anything with a `data-no-screenshot`
+ * attribute (the report button itself) is left out.
  */
 export async function takeScreenshot(): Promise<string | null> {
   try {
@@ -110,10 +76,9 @@ export async function takeScreenshot(): Promise<string | null> {
       width,
       height,
       scale: Math.min(devicePixelRatio || 1, SHOT_WIDTH / width, 2),
-      backgroundColor: getComputedStyle(document.body).backgroundColor || "#1f4d3a",
+      backgroundColor: getComputedStyle(document.body).backgroundColor || "#ffffff",
       // What's on screen now, not the top of a long page.
       style: { margin: "0", transform: `translate(${-scrollX}px, ${-scrollY}px)`, transformOrigin: "top left", width: `${page.scrollWidth}px`, height: `${page.scrollHeight}px` },
-      // The report button itself isn't part of the problem.
       filter: (node) => !(node instanceof Element && node.hasAttribute("data-no-screenshot")),
       timeout: 4000,
     });
@@ -128,86 +93,124 @@ export async function takeScreenshot(): Promise<string | null> {
   }
 }
 
-// ---- Sending ---------------------------------------------------------------------------------------
+// ---- The client -------------------------------------------------------------------------------------
 
-export interface SentReport {
-  number: number;
-  url: string;
-}
+const ERRORS_KEPT = 10;
 
-/** A report or request as the parlor's AI tidied it, for the player to look over. */
-export type Tidied = { kind: "bug"; title: string; report: string } | { kind: "game"; game: string; note: string };
+export function createRelayClient(options: RelayClientOptions = {}) {
+  const base = (options.base ?? "/relay").replace(/\/$/, "");
+  const call = options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  const credentials = options.credentials ?? "same-origin";
 
-let asked: Promise<{ enabled: boolean; tidy: boolean }> | null = null;
-const config = () =>
-  (asked ??= fetch("/bugs/config", { credentials: "same-origin" })
-    .then((r) => (r.ok ? r.json() : {}))
-    .then(
-      (c: { enabled?: boolean; tidy?: boolean }) => ({ enabled: c.enabled === true, tidy: c.enabled === true && c.tidy === true }),
-      () => ({ enabled: false, tidy: false }),
-    ));
+  let context: RelayContext = { screen: "home" };
+  const errors: string[] = [];
 
-/** Ask the parlor to tidy what the player wrote. Throws with words for the player. */
-async function tidy(input: { kind: "bug"; description: string } | { kind: "game"; game: string; note: string }): Promise<Tidied> {
-  let response: Response;
-  try {
-    response = await fetch("/bugs/tidy", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input.kind === "bug" ? { ...input, ...context } : input),
-    });
-  } catch {
-    throw new Error("Couldn't reach the parlor to tidy it.");
+  function note(kind: string, problem: unknown) {
+    const e = problem as { message?: unknown; stack?: unknown } | null;
+    const message = typeof e?.message === "string" ? e.message : String(problem);
+    // A stack usually starts with the message; when it does, the stack alone says both.
+    const stack = typeof e?.stack === "string" ? e.stack.split("\n").slice(0, 8).join("\n") : "";
+    const text = stack.includes(message) ? stack : [message, stack].filter(Boolean).join("\n");
+    const at = new Date().toISOString().slice(11, 19);
+    errors.push(`${at} ${kind}: ${text}`.slice(0, 1200));
+    if (errors.length > ERRORS_KEPT) errors.shift();
   }
-  const data = (await response.json().catch(() => ({}))) as Partial<Tidied> & { error?: string };
-  if (!response.ok || data.kind !== input.kind) throw new Error(data.error ?? "It couldn't be tidied just now.");
-  return data as Tidied;
-}
 
-export const bugs = {
-  /** Whether this parlor takes reports: asked once. False on a copy of the app with no server. */
-  enabled: () => config().then((c) => c.enabled),
-  /** Whether it can tidy a report (or a game request) with its AI key before it's sent. */
-  canTidy: () => config().then((c) => c.tidy),
-  tidy,
-  /**
-   * `title` and `original` come from a tidy-up: the title the player kept, and what they first wrote
-   * (sent along with the tidied words, folded away in the issue).
-   */
-  async send(report: { description: string; title?: string; original?: string; screenshot: string | null; browser: BrowserInfo | null }): Promise<SentReport> {
+  let asked: Promise<{ enabled: boolean; tidy: boolean }> | null = null;
+  const config = () =>
+    (asked ??= call(`${base}/config`, { credentials })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then(
+        (c: { enabled?: boolean; tidy?: boolean }) => ({ enabled: c.enabled === true, tidy: c.enabled === true && c.tidy === true }),
+        () => ({ enabled: false, tidy: false }),
+      ));
+
+  /** POST some JSON and read the answer; throws with words for the person when it didn't work. */
+  async function post<T>(path: string, body: unknown, unreachable: string, failed: string, ok: (data: Partial<T> & { error?: string }) => boolean): Promise<T> {
     let response: Response;
     try {
-      response = await fetch("/bugs", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...report, ...context, built: typeof __BUILT__ === "string" ? __BUILT__ : "", errors }),
-      });
+      response = await call(`${base}${path}`, { method: "POST", credentials, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     } catch {
-      throw new Error("Couldn't reach the parlor. Check your connection and try again.");
+      throw new Error(unreachable);
     }
-    const data = (await response.json().catch(() => ({}))) as Partial<SentReport> & { error?: string };
-    if (!response.ok || typeof data.number !== "number") throw new Error(data.error ?? "The report couldn't be sent just now. Try again in a minute.");
-    return { number: data.number, url: data.url ?? "" };
-  },
-};
-
-/** "Ask for a game", from the front page's footer: the server files it, or adds to the request already open. */
-export async function askForGame(game: string, note: string, original?: { game: string; note: string }): Promise<SentReport & { again: boolean }> {
-  let response: Response;
-  try {
-    response = await fetch("/bugs/game", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ game, note, original }) });
-  } catch {
-    throw new Error("Couldn't reach the parlor. Check your connection and try again.");
+    const data = (await response.json().catch(() => ({}))) as Partial<T> & { error?: string };
+    if (!response.ok || !ok(data)) throw new Error(data.error ?? failed);
+    return data as T;
   }
-  const data = (await response.json().catch(() => ({}))) as Partial<SentReport> & { error?: string; again?: boolean };
-  if (!response.ok || typeof data.number !== "number") throw new Error(data.error ?? "The request couldn't be sent just now. Try again in a minute.");
-  return { number: data.number, url: data.url ?? "", again: data.again === true };
-}
-export const ASK_EVENT = "cardroom:ask-for-game";
-export const openGameRequest = () => dispatchEvent(new Event(ASK_EVENT));
 
-/** Open the report sheet from anywhere (the screen shown when the app crashes, say). */
-export const REPORT_EVENT = "cardroom:report-problem";
-export const openReport = () => dispatchEvent(new Event(REPORT_EVENT));
+  return {
+    /** The app says where it is as it moves between screens. */
+    setContext: (next: RelayContext) => void (context = next),
+    getContext: (): RelayContext => context,
+
+    /** Remember the last few things that went wrong on this page, in case a report is sent. Returns a function that stops. */
+    watchForErrors(): () => void {
+      const onError = (e: ErrorEvent) => note("error", e.error ?? e.message);
+      const onRejection = (e: PromiseRejectionEvent) => note("unhandled rejection", e.reason);
+      addEventListener("error", onError);
+      addEventListener("unhandledrejection", onRejection);
+      const original = console.error;
+      console.error = (...args: unknown[]) => {
+        try {
+          note("console.error", args.length === 1 ? args[0] : args.map((a) => (a instanceof Error ? a.message : typeof a === "string" ? a : JSON.stringify(a))).join(" "));
+        } catch {
+          /* something that can't be put into words */
+        }
+        original.apply(console, args);
+      };
+      return () => {
+        removeEventListener("error", onError);
+        removeEventListener("unhandledrejection", onRejection);
+        console.error = original;
+      };
+    },
+    /** Note a problem by hand (the screen that crashed, say). */
+    noteError: note,
+
+    browserInfo,
+    takeScreenshot,
+
+    /** Whether the server takes reports: asked once. False when there's no server to ask. */
+    enabled: () => config().then((c) => c.enabled),
+    /** Whether it can tidy a report or request before it's sent. */
+    canTidy: () => config().then((c) => c.tidy),
+
+    /** Ask the server to tidy what the person wrote. Throws with words for the person. */
+    tidy(input: { kind: "bug"; description: string } | { kind: "request"; name: string; note: string }): Promise<Tidied> {
+      return post<Tidied>(
+        "/tidy",
+        input.kind === "bug" ? { ...input, screen: context.screen, scope: context.scope } : input,
+        "Couldn't reach the server to tidy it.",
+        "It couldn't be tidied just now.",
+        (data) => data.kind === input.kind,
+      );
+    },
+
+    /** Send a report. Throws with words for the person. */
+    async send(report: ReportToSend): Promise<SentReport> {
+      const data = await post<SentReport>(
+        "",
+        { ...report, ...context, built: options.built ?? "", errors },
+        "Couldn't reach the server. Check your connection and try again.",
+        "The report couldn't be sent just now. Try again in a minute.",
+        (d) => typeof d.number === "number",
+      );
+      return { number: data.number, url: data.url ?? "" };
+    },
+
+    /** Ask for something: the server files it, or adds to the request already open. */
+    async request(name: string, note: string, original?: { name: string; note: string }): Promise<SentRequest> {
+      const data = await post<SentRequest>(
+        "/request",
+        { name, note, original },
+        "Couldn't reach the server. Check your connection and try again.",
+        "The request couldn't be sent just now. Try again in a minute.",
+        (d) => typeof d.number === "number",
+      );
+      return { number: data.number, url: data.url ?? "", again: data.again === true };
+    },
+  };
+}
+
+export type RelayClient = ReturnType<typeof createRelayClient>;
+export type { BrowserInfo, RelayContext, SentReport, SentRequest, Tidied };

@@ -1,216 +1,163 @@
-// "Ask for a game": a line in the front page's footer opens this sheet. A game's name and, if they
-// like, a note; the parlor files the request on GitHub for them (see the server's bugs.ts). With an
-// AI key, "Next" first tidies it (the game's proper name, a short note) for them to look over.
-import TextField from "@open-parlor/ui/zubra-ui/text-field.zb";
-import { useEffect, useState } from "react";
-import { ASK_EVENT, askForGame, bugs, type SentReport } from "./bugReport";
-import { TidyNote, useTidy } from "./Tidy";
-import { arranged } from "./catalogue";
-import { GAME_LIST } from "./GamePicker";
+// "Make a request": a button, and the sheet it opens. A name and, if they like, a note. With a tidying
+// server, "Next" shows them the tidied version to look over first.
+//
+// `existing` is whatever your flow's `findExisting` found for the name: show them it's already here
+// with `renderExisting`, and the flow won't send.
+import { useEffect, type ReactNode } from "react";
+import { canSubmit, isRequestBusy, type RequestFlow } from "../request-flow.js";
+import { requestCopy, type RequestCopy } from "./copy.js";
+import { defaultSlots, type Slots } from "./slots.js";
+import { TidyNote } from "./TidyNote.js";
+import { useEscape, useFlow } from "./use-flow.js";
 
 const NOTE_LIMIT = 600;
-/** A game's name with only its letters and digits, so "Gin rummy" finds "Gin Rummy". */
-const plainName = (name: string) => name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+const NAME_LIMIT = 60;
 
-export function GameRequest() {
-  const [open, setOpen] = useState(false);
-  const [game, setGame] = useState("");
-  const [note, setNote] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState<(SentReport & { again: boolean; game: string }) | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
-  const canTidy = useTidy();
-  const [tidying, setTidying] = useState(false);
-  /** Looking over a tidied request: what goes, what the AI suggested, and what the player wrote. */
-  const [draft, setDraft] = useState<{ game: string; note: string; tidied: { game: string; note: string } | null; original: { game: string; note: string } } | null>(null);
+interface Props<E> {
+  flow: RequestFlow<E>;
+  copy?: Partial<RequestCopy>;
+  slots?: Partial<Slots>;
+  /** What to show when `findExisting` found something: "Good news: it's already here." */
+  renderExisting?: (existing: E) => ReactNode;
+}
 
-  useEffect(() => {
-    const ask = () => {
-      setSent(null);
-      setProblem(null);
-      setDraft(null);
-      setOpen(true);
-    };
-    addEventListener(ASK_EVENT, ask);
-    return () => removeEventListener(ASK_EVENT, ask);
-  }, []);
-  useEffect(() => {
-    if (!open) return;
-    const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    addEventListener("keydown", key);
-    return () => removeEventListener("keydown", key);
-  }, [open]);
+/** The button that opens the sheet. Shows nothing until the server says requests are on. */
+export function RequestButton<E>({ flow, label = "Make a request", children, className }: { flow: RequestFlow<E>; label?: string; children?: ReactNode; className?: string }) {
+  const s = useFlow(flow);
+  useEffect(() => void flow.load(), [flow]);
+  if (!s.enabled) return null;
+  return (
+    <button type="button" className={className ?? "relay-link"} data-no-screenshot onClick={flow.open}>
+      {children ?? label}
+    </button>
+  );
+}
 
-  if (!open) return null;
+export function RequestSheet<E = never>({ flow, copy: given, slots: givenSlots, renderExisting }: Props<E>) {
+  const s = useFlow(flow);
+  const copy = { ...requestCopy, ...given };
+  const { TextField } = { ...defaultSlots, ...givenSlots };
+  useEffect(() => void flow.load(), [flow]);
+  useEscape(s.open, flow.close);
 
-  // A game the parlor already has needs no request.
-  const already = (name: string) => (name.trim() ? arranged(GAME_LIST).find((g) => plainName(g.name) === plainName(name)) : undefined);
-  const have = already(draft ? draft.game : game);
-  const send = async () => {
-    setProblem(null);
-    setSending(true);
-    try {
-      const name = (draft ? draft.game : game).trim();
-      setSent({ ...(await (draft ? askForGame(name, draft.note.trim(), draft.original) : askForGame(name, note.trim()))), game: name });
-      setGame("");
-      setNote("");
-      setDraft(null);
-    } catch (e) {
-      setProblem((e as Error).message);
-    }
-    setSending(false);
-  };
-  /** "Next": tidy the request first when the parlor can, else send it as it is. */
-  const next = async () => {
-    if (!canTidy) return send();
-    const original = { game: game.trim(), note: note.trim() };
-    setProblem(null);
-    setTidying(true);
-    let tidied: { game: string; note: string } | null = null;
-    try {
-      const t = await bugs.tidy({ kind: "game", ...original });
-      if (t.kind === "game") tidied = { game: t.game, note: t.note };
-    } catch {
-      // Their own words, then: the review says so.
-    }
-    setTidying(false);
-    setDraft({ ...(tidied ?? original), tidied, original });
-  };
+  if (!s.enabled || !s.open) return null;
+
+  const busy = isRequestBusy(s);
+  const { draft } = s;
+  const existing = s.existing !== undefined && renderExisting ? <p>{renderExisting(s.existing)}</p> : null;
+  const nameLabel = copy.nameLabel;
 
   return (
     <div data-no-screenshot>
-      <div className="sheet-backdrop report-backdrop" onClick={sending || tidying ? undefined : () => setOpen(false)} />
-      <div className="sheet report-sheet" role="dialog" aria-modal="true" aria-labelledby="ask-title">
-        {sent ? (
+      <div className="relay-backdrop" onClick={busy ? undefined : flow.close} />
+      <div className="relay-sheet" role="dialog" aria-modal="true" aria-labelledby="relay-request-title">
+        {s.sent ? (
           <>
-            <h2 id="ask-title">{sent.again ? "You're not the only one!" : "Asked!"}</h2>
+            <h2 id="relay-request-title">{s.sent.again ? copy.againTitle : copy.sentTitle}</h2>
             <p>
-              {sent.again ? `Someone has already asked for ${sent.game}, so your voice was added to theirs.` : `Your request for ${sent.game} is in.`} It's number {sent.number}.
-              {sent.url && (
+              {copy.sentBody(s.sent.name, s.sent.number, s.sent.again)}
+              {s.sent.url && (
                 <>
                   {" "}
-                  If you're curious, you can{" "}
-                  <a href={sent.url} target="_blank" rel="noreferrer">
-                    follow it on GitHub
+                  <a href={s.sent.url} target="_blank" rel="noreferrer">
+                    {copy.follow}
                   </a>
                   .
                 </>
               )}
             </p>
-            <button type="button" className="primary" onClick={() => setOpen(false)}>
-              Back to the games
+            <button type="button" className="relay-primary" onClick={flow.close}>
+              {copy.done}
             </button>
           </>
         ) : draft ? (
           <form
-            className="report-form"
+            className="relay-form"
             onSubmit={(e) => {
               e.preventDefault();
-              if (draft.game.trim() && !have) void send();
+              if (canSubmit(s)) void flow.send();
             }}
           >
-            <h2 id="ask-title">Look it over</h2>
+            <h2 id="relay-request-title">{copy.reviewTitle}</h2>
             <TidyNote tidied={draft.tidied !== null} what="request" />
-            <TextField label="Which game?" required maxlength={60} value={draft.game} onValueChange={(e: CustomEvent<string>) => setDraft({ ...draft, game: e.detail })} />
-            {have && (
-              <p>
-                Good news: {have.emoji} {have.name} is already here. It's on the front page.
-              </p>
-            )}
-            <label className="report-words">
-              <span>Note</span>
-              <textarea rows={3} maxLength={NOTE_LIMIT} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
+            <TextField label={nameLabel} required maxLength={NAME_LIMIT} value={draft.name} onChange={(name) => flow.editDraft({ name })} />
+            {existing}
+            <label className="relay-field">
+              <span>{copy.tidyNote}</span>
+              <textarea rows={3} maxLength={NOTE_LIMIT} value={draft.note} onChange={(e) => flow.editDraft({ note: e.target.value })} />
             </label>
-            <div className="tidy-choices">
-              <button
-                type="button"
-                className="link"
-                disabled={draft.game === draft.original.game && draft.note === draft.original.note}
-                onClick={() => setDraft({ ...draft, ...draft.original })}
-              >
-                Put my own words back
+            <div className="relay-choices">
+              <button type="button" className="relay-link" disabled={draft.name === draft.original.name && draft.note === draft.original.note} onClick={flow.useOriginal}>
+                {copy.useOriginal}
               </button>
-              {draft.tidied && (draft.game !== draft.tidied.game || draft.note !== draft.tidied.note) && (
-                <button type="button" className="link" onClick={() => setDraft({ ...draft, ...draft.tidied! })}>
-                  Use the tidied version
+              {draft.tidied && (draft.name !== draft.tidied.name || draft.note !== draft.tidied.note) && (
+                <button type="button" className="relay-link" onClick={flow.useTidied}>
+                  {copy.useTidied}
                 </button>
               )}
             </div>
-            <details className="report-details">
-              <summary>See exactly what's sent</summary>
+            <details className="relay-details">
+              <summary>{copy.seeWhatsSent}</summary>
               <dl>
                 <div>
-                  <dt>Game</dt>
-                  <dd>{draft.game.trim()}</dd>
+                  <dt>{nameLabel}</dt>
+                  <dd>{draft.name.trim()}</dd>
                 </div>
                 <div>
-                  <dt>Note</dt>
-                  <dd className="pre">{draft.note.trim() || "(none)"}</dd>
+                  <dt>{copy.tidyNote}</dt>
+                  <dd className="relay-pre">{draft.note.trim() || copy.noNote}</dd>
                 </div>
-                {(draft.game.trim() !== draft.original.game || draft.note.trim() !== draft.original.note) && (
+                {(draft.name.trim() !== draft.original.name || draft.note.trim() !== draft.original.note) && (
                   <div>
-                    <dt>Your own words</dt>
-                    <dd className="pre">{[draft.original.game, draft.original.note].filter(Boolean).join("\n\n")}</dd>
+                    <dt>{copy.yourOwnWords}</dt>
+                    <dd className="relay-pre">{[draft.original.name, draft.original.note].filter(Boolean).join("\n\n")}</dd>
                   </div>
                 )}
               </dl>
             </details>
-            {problem && (
-              <p className="error" role="alert">
-                {problem}
+            {s.problem && (
+              <p className="relay-error" role="alert">
+                {s.problem}
               </p>
             )}
-            <div className="report-actions">
-              <button
-                type="button"
-                className="secondary"
-                disabled={sending}
-                onClick={() => {
-                  setGame(draft.original.game);
-                  setNote(draft.original.note);
-                  setDraft(null);
-                }}
-              >
-                Back
+            <div className="relay-actions">
+              <button type="button" className="relay-secondary" disabled={busy} onClick={flow.backToWriting}>
+                {copy.back}
               </button>
-              <button type="submit" className="primary" disabled={sending || !draft.game.trim() || !!have}>
-                {sending ? "Sending…" : "Send request"}
+              <button type="submit" className="relay-primary" disabled={!canSubmit(s)}>
+                {s.sending ? copy.sending : copy.sendRequest}
               </button>
             </div>
           </form>
         ) : (
           <form
-            className="report-form"
+            className="relay-form"
             onSubmit={(e) => {
               e.preventDefault();
-              if (game.trim() && !have) void next();
+              if (canSubmit(s)) void flow.next();
             }}
           >
-            <h2 id="ask-title">Ask for a game</h2>
-            <TextField label="Which game?" required maxlength={60} value={game} placeholder="Backgammon, Skat, Mexican Train…" onValueChange={(e: CustomEvent<string>) => setGame(e.detail)} />
-            {have && (
-              <p>
-                Good news: {have.emoji} {have.name} is already here. It's on the front page.
-              </p>
-            )}
-            <label className="report-words">
+            <h2 id="relay-request-title">{copy.title}</h2>
+            <TextField label={nameLabel} required maxLength={NAME_LIMIT} value={s.name} placeholder={copy.namePlaceholder} onChange={flow.setName} />
+            {existing}
+            <label className="relay-field">
               <span>
-                Anything we should know? <small>(you can leave this empty)</small>
+                {copy.noteLabel} <small>{copy.noteOptional}</small>
               </span>
-              <textarea rows={3} maxLength={NOTE_LIMIT} value={note} placeholder="How your family plays it, how many players, a rule you can't do without…" onChange={(e) => setNote(e.target.value)} />
+              <textarea rows={3} maxLength={NOTE_LIMIT} value={s.note} placeholder={copy.notePlaceholder} onChange={(e) => flow.setNote(e.target.value)} />
             </label>
-            <p className="fine">Requests are posted where anyone can read them, so the people who work on open.parlor can see what to build next. Yours never includes your name.</p>
-            {problem && (
-              <p className="error" role="alert">
-                {problem}
+            <p className="relay-fine">{copy.finePrint}</p>
+            {s.problem && (
+              <p className="relay-error" role="alert">
+                {s.problem}
               </p>
             )}
-            <div className="report-actions">
-              <button type="button" className="secondary" onClick={() => setOpen(false)} disabled={sending || tidying}>
-                Cancel
+            <div className="relay-actions">
+              <button type="button" className="relay-secondary" onClick={flow.close} disabled={busy}>
+                {copy.cancel}
               </button>
-              <button type="submit" className="primary" disabled={sending || tidying || !game.trim() || !!have}>
-                {sending ? "Sending…" : tidying ? "Tidying it up…" : canTidy ? "Next" : "Send request"}
+              <button type="submit" className="relay-primary" disabled={!canSubmit(s)}>
+                {s.sending ? copy.sending : s.tidying ? copy.tidying : s.canTidy ? copy.next : copy.send}
               </button>
             </div>
           </form>

@@ -1,0 +1,17 @@
+{
+  "name": "open.relay",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @journey-to-code/relay && npm run build -w @journey-to-code/relay-ui",
+    "typecheck": "npm run build && npm run typecheck --workspaces --if-present",
+    "test": "npm run build && npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}
