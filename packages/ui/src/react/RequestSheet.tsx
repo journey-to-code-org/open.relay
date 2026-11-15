@@ -1,7 +1,7 @@
 // "Ask for a game": a line in the front page's footer opens this sheet. A game's name and, if they
 // like, a note; the card room files the request on GitHub for them (see the server's bugs.ts). With an
 // AI key, "Next" first tidies it (the game's proper name, a short note) for them to look over.
-import TextField from "@spades/ui/zubra-ui/text-field.zb";
+import TextField from "@open-parlor/ui/zubra-ui/text-field.zb";
 import { useEffect, useState } from "react";
 import { ASK_EVENT, askForGame, bugs, type SentReport } from "./bugReport";
 import { TidyNote, useTidy } from "./Tidy";

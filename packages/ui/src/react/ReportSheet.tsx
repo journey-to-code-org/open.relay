@@ -4,7 +4,7 @@
 //
 // When the card room has an AI key, "Send" first tidies their words: a title and a concise report for
 // the developers. They look it over (and can change it, or put their own words back) before it goes.
-import ToggleSwitch from "@spades/ui/zubra-ui/toggle-switch.zb";
+import ToggleSwitch from "@open-parlor/ui/zubra-ui/toggle-switch.zb";
 import { useEffect, useRef, useState } from "react";
 import { browserInfo, browserLines, bugs, openReport, REPORT_EVENT, takeScreenshot, type BrowserInfo, type SentReport } from "./bugReport";
 import { TidyNote, useTidy } from "./Tidy";
