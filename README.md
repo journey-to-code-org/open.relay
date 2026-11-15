@@ -105,8 +105,9 @@ Open the report sheet from anywhere, such as a crash screen, with `report.open()
 **Making it yours**, from lightest to heaviest:
 
 1. **CSS.** Everything is a `relay-*` class, and `styles.css` is themed with a few CSS variables (or skip it).
-2. **`copy`.** Every word, one at a time: `<ReportSheet copy={{ title: "Something broke?" }} />`.
-3. **`slots`.** Swap the toggle and text field for your design system's. Each takes plain props and a plain `onChange`:
+2. **`classes`.** Already have styles for sheets, buttons and fields? Point each part at your own class instead: `<ReportSheet classes={{ sheet: "sheet", primary: "btn btn-primary" }} />` replaces just those.
+3. **`copy`.** Every word, one at a time: `<ReportSheet copy={{ title: "Something broke?" }} />`.
+4. **`slots`.** Swap the toggle and text field for your design system's. Each takes plain props and a plain `onChange`:
 
    ```tsx
    import ToggleSwitch from "my-design-system/toggle-switch";
@@ -115,7 +116,7 @@ Open the report sheet from anywhere, such as a crash screen, with `report.open()
    );
    <ReportSheet flow={report} slots={{ Toggle }} />
    ```
-4. **Your own sheet.** `useFlow(flow)` gives the state, and the flow has every action (`open`, `next`, `send`, `editDraft`, `useOriginal`, `useTidied`, …). The flows are plain objects with `getState`/`subscribe`, so any framework can drive them.
+5. **Your own sheet.** `useFlow(flow)` gives the state, and the flow has every action (`open`, `next`, `send`, `editDraft`, `useOriginal`, `useTidied`, …). The flows are plain objects with `getState`/`subscribe`, so any framework can drive them.
 
 ## Layout
 
