@@ -1,0 +1,41 @@
+# Releases to npm when a package's version reaches main: any package whose version isn't on npm
+# yet is published, in the order they depend on each other, with provenance, and then each package
+# gets a tag (`relay-v0.1.1`) and a GitHub release with generated notes. Pushes that don't change a
+# version do nothing. The build, types and tests run first, so a broken main publishes nothing.
+# The work is journey-to-code-org/release-on-bump; this file is what npm trusts.
+#
+# It can be run again from the Actions tab, on main only. A package already on npm is skipped, and
+# a version that has no GitHub release yet is given one, so re-running finishes whatever is missing.
+#
+# No npm token is stored: npm trusts this workflow (OIDC). Set up once per package on npmjs.com:
+# Settings → Trusted publishing → GitHub Actions, organization `journey-to-code-org`, repository
+# `open.relay`, workflow `release.yml`, environment `release`. The `release` environment can be
+# limited to main in the repository's settings.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One release at a time, and never cancelled halfway through a publish.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  release:
+    name: Publish and release
+    if: github.ref == 'refs/heads/main'
+    environment: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the tags and the releases
+      id-token: write # trusted publishing, and npm's provenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: journey-to-code-org/release-on-bump@v1
+        with:
+          tag-format: "{name}-v{version}" # relay-v0.1.1, relay-ui-v0.1.1
