@@ -9,12 +9,14 @@ on:
       - "docs/**"
       - "docs-site/**"
       - "scripts/build-docs-site.mjs"
+      - "scripts/build-widget.mjs"
       - ".github/workflows/docs-pages.yml"
   pull_request:
     paths:
       - "docs/**"
       - "docs-site/**"
       - "scripts/build-docs-site.mjs"
+      - "scripts/build-widget.mjs"
       - ".github/workflows/docs-pages.yml"
   workflow_dispatch:
 
@@ -52,6 +54,17 @@ jobs:
       - name: Build the open.blog command
         working-directory: .open.blog
         run: cargo build --release -p openblog-cli
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build the Report a problem button
+        run: |
+          npm ci
+          npm run build
+          node scripts/build-widget.mjs
 
       - name: Fill docs-site/content/docs from docs/
         run: node scripts/build-docs-site.mjs

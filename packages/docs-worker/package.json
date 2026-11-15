@@ -1,0 +1,19 @@
+{
+  "name": "open.relay-docs-worker",
+  "private": true,
+  "version": "0.0.0",
+  "description": "The Cloudflare Worker behind the Report a problem button on the open.relay docs site.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@journey-to-code/relay": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

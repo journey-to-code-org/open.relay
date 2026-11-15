@@ -7,22 +7,57 @@
     "url": "https://github.com/journey-to-code-org"
   },
   "nav": [
-    { "label": "Docs", "href": "/docs/" },
-    { "label": "Getting started", "href": "/docs/getting-started/" },
-    { "label": "For agents", "href": "/docs/agents/" },
-    { "label": "Search", "href": "/search/" }
+    {
+      "label": "Docs",
+      "href": "/docs/"
+    },
+    {
+      "label": "Getting started",
+      "href": "/docs/getting-started/"
+    },
+    {
+      "label": "For agents",
+      "href": "/docs/agents/"
+    },
+    {
+      "label": "Search",
+      "href": "/search/"
+    }
   ],
   "social": [
-    { "label": "GitHub", "href": "https://github.com/journey-to-code-org/open.relay" }
+    {
+      "label": "GitHub",
+      "href": "https://github.com/journey-to-code-org/open.relay"
+    }
   ],
   "footer": "open.relay is open source (MIT). These pages are built with open.blog from the repository's docs/ folder.",
-  "feeds": { "rss": false, "json": false, "sitemap": true, "llms": true, "portfolioSnapshot": false },
-  "analytics": { "builtin": false, "showViews": false },
-  "share": { "enabled": false },
+  "feeds": {
+    "rss": false,
+    "json": false,
+    "sitemap": true,
+    "llms": true,
+    "portfolioSnapshot": false
+  },
+  "analytics": {
+    "builtin": false,
+    "showViews": false
+  },
+  "share": {
+    "enabled": false
+  },
   "docs": {
     "enabled": true,
     "title": "open.relay",
     "source": "https://github.com/journey-to-code-org/open.relay/blob/main/docs/"
   },
-  "paths": { "content": "content", "static": "static", "output": "dist", "themes": "../.open.blog/themes", "web": "../.open.blog/web" }
+  "paths": {
+    "content": "content",
+    "static": "static",
+    "output": "dist",
+    "themes": "../.open.blog/themes",
+    "web": "../.open.blog/web"
+  },
+  "snippets": {
+    "bodyEnd": "<script type=\"module\" src=\"https://journey-to-code-org.github.io/open.relay/relay-widget.js\" data-relay=\"\"></script>"
+  }
 }

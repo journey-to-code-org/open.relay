@@ -1,0 +1,8 @@
+name = "open-relay-docs"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[vars]
+REPO = "journey-to-code-org/open.relay"
+ALLOWED_ORIGINS = "https://journey-to-code-org.github.io"
+
