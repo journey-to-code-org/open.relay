@@ -2,6 +2,8 @@
   "name": "@journey-to-code/relay",
   "version": "0.1.0",
   "description": "Let people report a bug or ask for a feature from inside your app, with no GitHub account. The server files it as an issue.",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/journey-to-code-org/open.relay.git", "directory": "packages/core" },
   "type": "module",
   "files": [
     "dist"

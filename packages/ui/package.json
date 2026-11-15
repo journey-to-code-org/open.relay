@@ -2,6 +2,8 @@
   "name": "@journey-to-code/relay-ui",
   "version": "0.1.0",
   "description": "The interface for @journey-to-code/relay: framework-free flow controllers, React bindings, and default sheets you can restyle or swap piece by piece.",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/journey-to-code-org/open.relay.git", "directory": "packages/ui" },
   "type": "module",
   "files": [
     "dist"

@@ -132,4 +132,4 @@ npm run typecheck
 
 ## Status
 
-0.1.0, not yet published to npm. No license has been chosen yet.
+0.1.0, not yet published to npm. [MIT](LICENSE).
