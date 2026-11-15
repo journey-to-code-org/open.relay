@@ -23,7 +23,7 @@ Finish a change only when `npm run typecheck` and `npm test` both pass.
 
 ## Releasing
 
-Bump `version` in each changed package's `package.json` in a PR and merge. `.github/workflows/release.yml` (the Release on Bump action) publishes versions not on npm yet, with provenance, then tags `relay-v<version>` and `relay-ui-v<version>` and creates GitHub releases. If `relay-ui` needs a new `relay`, bump both and raise the dependency range. A failed run is safe to re-run from the Actions tab. Details: `docs/releasing.md`.
+Bump `version` in each changed package's `package.json` in a PR and merge. `.github/workflows/release.yml` (the Release on Bump action) publishes versions not on npm yet, with provenance, then tags `relay-v<version>` and `relay-ui-v<version>` and creates GitHub releases. If `relay-ui` needs a new `relay`, bump both and raise the dependency range. A failed run is safe to re-run from the Actions tab. Details: `RELEASING.md` at the repository root.
 
 ## Docs
 

@@ -1,7 +1,3 @@
----
-order: 7
----
-
 # Releasing
 
 You bump a version in a pull request. Merging it releases.
@@ -40,4 +36,4 @@ The work is done by [Release on Bump](https://github.com/journey-to-code-org/rel
 
 ## Docs
 
-The pages you are reading are in `docs/`, published to GitHub Pages by `docs-pages.yml` whenever they change on `main`. Publishing them is separate from releasing the packages and does not touch npm. See [For agents](agents.md#editing-these-docs) for how to build them locally.
+The documentation site is built from `docs/`, published to GitHub Pages by `docs-pages.yml` whenever they change on `main`. Publishing them is separate from releasing the packages and does not touch npm. See [For agents](docs/agents.md#editing-these-docs) for how to build them locally.
