@@ -67,6 +67,26 @@ describe("the report sheet", () => {
   });
 });
 
+describe("classes", () => {
+  it("uses relay-* classes by default, and the app's own where given", async () => {
+    const flow = createReportFlow(reportClient());
+    await flow.open();
+    const plain = renderToString(<ReportSheet flow={flow} />);
+    expect(plain).toContain('class="relay-sheet"');
+    expect(plain).toContain('class="relay-primary"');
+    const mine = renderToString(<ReportSheet flow={flow} classes={{ sheet: "sheet report-sheet", primary: "primary" }} />);
+    expect(mine).toContain('class="sheet report-sheet"');
+    expect(mine).toContain('class="primary"');
+    // What isn't overridden keeps its default.
+    expect(mine).toContain('class="relay-backdrop"');
+    expect(mine).not.toContain('class="relay-sheet"');
+    // The tidy note carries both its classes.
+    flow.setDescription("the cards overlap on my phone");
+    await flow.next();
+    expect(renderToString(<ReportSheet flow={flow} classes={{ fine: "fine", tidyNote: "tidy-note" }} />)).toContain('class="fine tidy-note"');
+  });
+});
+
 describe("the request sheet", () => {
   const requestClient = () => ({
     enabled: async () => true,

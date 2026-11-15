@@ -7,6 +7,7 @@
 import { browserLines } from "@journey-to-code/relay/client";
 import { useEffect, useRef, type ReactNode } from "react";
 import { isBusy, isReviewing, isShowing, titleOf, type ReportFlow } from "../report-flow.js";
+import { defaultClasses, type Classes } from "./classes.js";
 import { reportCopy, type ReportCopy } from "./copy.js";
 import { defaultSlots, type Slots } from "./slots.js";
 import { TidyNote } from "./TidyNote.js";
@@ -19,6 +20,8 @@ interface Props {
   flow: ReportFlow;
   copy?: Partial<ReportCopy>;
   slots?: Partial<Slots>;
+  /** Your own classes for the parts of the sheet. */
+  classes?: Partial<Classes>;
 }
 
 /** The button that opens the sheet. Shows nothing until the server says reporting is on, nor while the sheet is open. */
@@ -29,14 +32,15 @@ export function ReportButton({ flow, copy: given, children, className }: { flow:
   if (!s.enabled || isShowing(s)) return null;
   return (
     // Never in its own picture.
-    <button type="button" className={className ?? "relay-toggle-button"} data-no-screenshot onClick={() => void flow.open()} disabled={s.stage === "looking"} aria-label={copy.open} title={copy.open}>
+    <button type="button" className={className ?? defaultClasses.toggleButton} data-no-screenshot onClick={() => void flow.open()} disabled={s.stage === "looking"} aria-label={copy.open} title={copy.open}>
       {children ?? <span aria-hidden>{s.stage === "looking" ? "…" : "🐞"}</span>}
     </button>
   );
 }
 
-export function ReportSheet({ flow, copy: given, slots: givenSlots }: Props) {
+export function ReportSheet({ flow, copy: given, slots: givenSlots, classes }: Props) {
   const s = useFlow(flow);
+  const c = { ...defaultClasses, ...classes };
   const copy = { ...reportCopy, ...given };
   const { Toggle } = { ...defaultSlots, ...givenSlots };
   const words = useRef<HTMLTextAreaElement>(null);
@@ -55,8 +59,8 @@ export function ReportSheet({ flow, copy: given, slots: givenSlots }: Props) {
 
   return (
     <div data-no-screenshot>
-      <div className="relay-backdrop" onClick={busy ? undefined : flow.close} />
-      <div className="relay-sheet" role="dialog" aria-modal="true" aria-labelledby="relay-report-title">
+      <div className={c.backdrop} onClick={busy ? undefined : flow.close} />
+      <div className={c.sheet} role="dialog" aria-modal="true" aria-labelledby="relay-report-title">
         {s.stage === "sent" && s.sent ? (
           <>
             <h2 id="relay-report-title">{copy.sentTitle}</h2>
@@ -72,39 +76,39 @@ export function ReportSheet({ flow, copy: given, slots: givenSlots }: Props) {
                 </>
               )}
             </p>
-            <button type="button" className="relay-primary" onClick={flow.close}>
+            <button type="button" className={c.primary} onClick={flow.close}>
               {copy.done}
             </button>
           </>
         ) : reviewing && draft ? (
           <form
-            className="relay-form"
+            className={c.form}
             onSubmit={(e) => {
               e.preventDefault();
               void flow.send();
             }}
           >
             <h2 id="relay-report-title">{copy.reviewTitle}</h2>
-            <TidyNote tidied={draft.tidied !== null} what="report" />
-            <label className="relay-field">
+            <TidyNote tidied={draft.tidied !== null} what="report" classes={c} />
+            <label className={c.field}>
               <span>{copy.reviewTitleField}</span>
               <input type="text" maxLength={TITLE_LIMIT} value={draft.title} onChange={(e) => flow.editDraft({ title: e.target.value })} />
             </label>
-            <label className="relay-field">
+            <label className={c.field}>
               <span>{copy.reviewWords}</span>
               <textarea rows={6} maxLength={DESCRIPTION_LIMIT} value={draft.report} onChange={(e) => flow.editDraft({ report: e.target.value })} />
             </label>
-            <div className="relay-choices">
-              <button type="button" className="relay-link" disabled={draft.report === draft.original && draft.title === titleOf(draft.original)} onClick={flow.useOriginal}>
+            <div className={c.choices}>
+              <button type="button" className={c.link} disabled={draft.report === draft.original && draft.title === titleOf(draft.original)} onClick={flow.useOriginal}>
                 {copy.useOriginal}
               </button>
               {draft.tidied && (draft.report !== draft.tidied.report || draft.title !== draft.tidied.title) && (
-                <button type="button" className="relay-link" onClick={flow.useTidied}>
+                <button type="button" className={c.link} onClick={flow.useTidied}>
                   {copy.useTidied}
                 </button>
               )}
             </div>
-            <details className="relay-details">
+            <details className={c.details}>
               <summary>{copy.seeWhatsSent}</summary>
               <dl>
                 <div>
@@ -113,12 +117,12 @@ export function ReportSheet({ flow, copy: given, slots: givenSlots }: Props) {
                 </div>
                 <div>
                   <dt>{copy.reviewWords}</dt>
-                  <dd className="relay-pre">{draft.report.trim() || "—"}</dd>
+                  <dd className={c.pre}>{draft.report.trim() || "—"}</dd>
                 </div>
                 {draft.report.trim() !== draft.original && (
                   <div>
                     <dt>{copy.yourOwnWords}</dt>
-                    <dd className="relay-pre">{draft.original}</dd>
+                    <dd className={c.pre}>{draft.original}</dd>
                   </div>
                 )}
                 <div>
@@ -141,29 +145,29 @@ export function ReportSheet({ flow, copy: given, slots: givenSlots }: Props) {
               </dl>
             </details>
             {s.problem && (
-              <p className="relay-error" role="alert">
+              <p className={c.error} role="alert">
                 {s.problem}
               </p>
             )}
-            <div className="relay-actions">
-              <button type="button" className="relay-secondary" onClick={flow.backToWriting} disabled={busy}>
+            <div className={c.actions}>
+              <button type="button" className={c.secondary} onClick={flow.backToWriting} disabled={busy}>
                 {copy.back}
               </button>
-              <button type="submit" className="relay-primary" disabled={busy}>
+              <button type="submit" className={c.primary} disabled={busy}>
                 {s.stage === "sending" ? copy.sending : copy.sendReport}
               </button>
             </div>
           </form>
         ) : (
           <form
-            className="relay-form"
+            className={c.form}
             onSubmit={(e) => {
               e.preventDefault();
               void flow.next();
             }}
           >
             <h2 id="relay-report-title">{copy.title}</h2>
-            <label className="relay-field">
+            <label className={c.field}>
               <span>
                 {copy.words} <small>{copy.wordsOptional}</small>
               </span>
@@ -171,18 +175,18 @@ export function ReportSheet({ flow, copy: given, slots: givenSlots }: Props) {
             </label>
 
             {s.shot ? (
-              <div className="relay-choice">
+              <div className={c.choice}>
                 <Toggle label={copy.shotLabel} description={copy.shotDescription} checked={s.withShot} onChange={flow.setWithShot} />
-                {s.withShot && <img className="relay-shot" src={s.shot} alt={copy.shotAlt} />}
+                {s.withShot && <img className={c.shot} src={s.shot} alt={copy.shotAlt} />}
               </div>
             ) : (
-              <p className="relay-fine">{copy.noShot}</p>
+              <p className={c.fine}>{copy.noShot}</p>
             )}
 
-            <div className="relay-choice">
+            <div className={c.choice}>
               <Toggle label={copy.browserLabel} description={copy.browserDescription} checked={s.withBrowser} onChange={flow.setWithBrowser} />
               {browser && (
-                <details className="relay-details">
+                <details className={c.details}>
                   <summary>{copy.seeWhatsSent}</summary>
                   <dl>
                     {browser.map(([label, value]) => (
@@ -196,20 +200,20 @@ export function ReportSheet({ flow, copy: given, slots: givenSlots }: Props) {
               )}
             </div>
 
-            <p className="relay-fine">
+            <p className={c.fine}>
               {copy.finePrint}
               {s.canTidy && copy.tidyNext}
             </p>
             {s.problem && (
-              <p className="relay-error" role="alert">
+              <p className={c.error} role="alert">
                 {s.problem}
               </p>
             )}
-            <div className="relay-actions">
-              <button type="button" className="relay-secondary" onClick={flow.close} disabled={busy}>
+            <div className={c.actions}>
+              <button type="button" className={c.secondary} onClick={flow.close} disabled={busy}>
                 {copy.cancel}
               </button>
-              <button type="submit" className="relay-primary" disabled={busy}>
+              <button type="submit" className={c.primary} disabled={busy}>
                 {s.stage === "sending" ? copy.sending : s.stage === "tidying" ? copy.tidying : flow.willTidy() ? copy.next : copy.send}
               </button>
             </div>

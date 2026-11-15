@@ -5,6 +5,7 @@
 // with `renderExisting`, and the flow won't send.
 import { useEffect, type ReactNode } from "react";
 import { canSubmit, isRequestBusy, type RequestFlow } from "../request-flow.js";
+import { defaultClasses, type Classes } from "./classes.js";
 import { requestCopy, type RequestCopy } from "./copy.js";
 import { defaultSlots, type Slots } from "./slots.js";
 import { TidyNote } from "./TidyNote.js";
@@ -17,6 +18,8 @@ interface Props<E> {
   flow: RequestFlow<E>;
   copy?: Partial<RequestCopy>;
   slots?: Partial<Slots>;
+  /** Your own classes for the parts of the sheet. */
+  classes?: Partial<Classes>;
   /** What to show when `findExisting` found something: "Good news: it's already here." */
   renderExisting?: (existing: E) => ReactNode;
 }
@@ -27,14 +30,15 @@ export function RequestButton<E>({ flow, label = "Make a request", children, cla
   useEffect(() => void flow.load(), [flow]);
   if (!s.enabled) return null;
   return (
-    <button type="button" className={className ?? "relay-link"} data-no-screenshot onClick={flow.open}>
+    <button type="button" className={className ?? defaultClasses.link} data-no-screenshot onClick={flow.open}>
       {children ?? label}
     </button>
   );
 }
 
-export function RequestSheet<E = never>({ flow, copy: given, slots: givenSlots, renderExisting }: Props<E>) {
+export function RequestSheet<E = never>({ flow, copy: given, slots: givenSlots, classes, renderExisting }: Props<E>) {
   const s = useFlow(flow);
+  const c = { ...defaultClasses, ...classes };
   const copy = { ...requestCopy, ...given };
   const { TextField } = { ...defaultSlots, ...givenSlots };
   useEffect(() => void flow.load(), [flow]);
@@ -49,8 +53,8 @@ export function RequestSheet<E = never>({ flow, copy: given, slots: givenSlots, 
 
   return (
     <div data-no-screenshot>
-      <div className="relay-backdrop" onClick={busy ? undefined : flow.close} />
-      <div className="relay-sheet" role="dialog" aria-modal="true" aria-labelledby="relay-request-title">
+      <div className={c.backdrop} onClick={busy ? undefined : flow.close} />
+      <div className={c.sheet} role="dialog" aria-modal="true" aria-labelledby="relay-request-title">
         {s.sent ? (
           <>
             <h2 id="relay-request-title">{s.sent.again ? copy.againTitle : copy.sentTitle}</h2>
@@ -66,37 +70,37 @@ export function RequestSheet<E = never>({ flow, copy: given, slots: givenSlots, 
                 </>
               )}
             </p>
-            <button type="button" className="relay-primary" onClick={flow.close}>
+            <button type="button" className={c.primary} onClick={flow.close}>
               {copy.done}
             </button>
           </>
         ) : draft ? (
           <form
-            className="relay-form"
+            className={c.form}
             onSubmit={(e) => {
               e.preventDefault();
               if (canSubmit(s)) void flow.send();
             }}
           >
             <h2 id="relay-request-title">{copy.reviewTitle}</h2>
-            <TidyNote tidied={draft.tidied !== null} what="request" />
+            <TidyNote tidied={draft.tidied !== null} what="request" classes={c} />
             <TextField label={nameLabel} required maxLength={NAME_LIMIT} value={draft.name} onChange={(name) => flow.editDraft({ name })} />
             {existing}
-            <label className="relay-field">
+            <label className={c.field}>
               <span>{copy.tidyNote}</span>
               <textarea rows={3} maxLength={NOTE_LIMIT} value={draft.note} onChange={(e) => flow.editDraft({ note: e.target.value })} />
             </label>
-            <div className="relay-choices">
-              <button type="button" className="relay-link" disabled={draft.name === draft.original.name && draft.note === draft.original.note} onClick={flow.useOriginal}>
+            <div className={c.choices}>
+              <button type="button" className={c.link} disabled={draft.name === draft.original.name && draft.note === draft.original.note} onClick={flow.useOriginal}>
                 {copy.useOriginal}
               </button>
               {draft.tidied && (draft.name !== draft.tidied.name || draft.note !== draft.tidied.note) && (
-                <button type="button" className="relay-link" onClick={flow.useTidied}>
+                <button type="button" className={c.link} onClick={flow.useTidied}>
                   {copy.useTidied}
                 </button>
               )}
             </div>
-            <details className="relay-details">
+            <details className={c.details}>
               <summary>{copy.seeWhatsSent}</summary>
               <dl>
                 <div>
@@ -105,33 +109,33 @@ export function RequestSheet<E = never>({ flow, copy: given, slots: givenSlots, 
                 </div>
                 <div>
                   <dt>{copy.tidyNote}</dt>
-                  <dd className="relay-pre">{draft.note.trim() || copy.noNote}</dd>
+                  <dd className={c.pre}>{draft.note.trim() || copy.noNote}</dd>
                 </div>
                 {(draft.name.trim() !== draft.original.name || draft.note.trim() !== draft.original.note) && (
                   <div>
                     <dt>{copy.yourOwnWords}</dt>
-                    <dd className="relay-pre">{[draft.original.name, draft.original.note].filter(Boolean).join("\n\n")}</dd>
+                    <dd className={c.pre}>{[draft.original.name, draft.original.note].filter(Boolean).join("\n\n")}</dd>
                   </div>
                 )}
               </dl>
             </details>
             {s.problem && (
-              <p className="relay-error" role="alert">
+              <p className={c.error} role="alert">
                 {s.problem}
               </p>
             )}
-            <div className="relay-actions">
-              <button type="button" className="relay-secondary" disabled={busy} onClick={flow.backToWriting}>
+            <div className={c.actions}>
+              <button type="button" className={c.secondary} disabled={busy} onClick={flow.backToWriting}>
                 {copy.back}
               </button>
-              <button type="submit" className="relay-primary" disabled={!canSubmit(s)}>
+              <button type="submit" className={c.primary} disabled={!canSubmit(s)}>
                 {s.sending ? copy.sending : copy.sendRequest}
               </button>
             </div>
           </form>
         ) : (
           <form
-            className="relay-form"
+            className={c.form}
             onSubmit={(e) => {
               e.preventDefault();
               if (canSubmit(s)) void flow.next();
@@ -140,23 +144,23 @@ export function RequestSheet<E = never>({ flow, copy: given, slots: givenSlots, 
             <h2 id="relay-request-title">{copy.title}</h2>
             <TextField label={nameLabel} required maxLength={NAME_LIMIT} value={s.name} placeholder={copy.namePlaceholder} onChange={flow.setName} />
             {existing}
-            <label className="relay-field">
+            <label className={c.field}>
               <span>
                 {copy.noteLabel} <small>{copy.noteOptional}</small>
               </span>
               <textarea rows={3} maxLength={NOTE_LIMIT} value={s.note} placeholder={copy.notePlaceholder} onChange={(e) => flow.setNote(e.target.value)} />
             </label>
-            <p className="relay-fine">{copy.finePrint}</p>
+            <p className={c.fine}>{copy.finePrint}</p>
             {s.problem && (
-              <p className="relay-error" role="alert">
+              <p className={c.error} role="alert">
                 {s.problem}
               </p>
             )}
-            <div className="relay-actions">
-              <button type="button" className="relay-secondary" onClick={flow.close} disabled={busy}>
+            <div className={c.actions}>
+              <button type="button" className={c.secondary} onClick={flow.close} disabled={busy}>
                 {copy.cancel}
               </button>
-              <button type="submit" className="relay-primary" disabled={!canSubmit(s)}>
+              <button type="submit" className={c.primary} disabled={!canSubmit(s)}>
                 {s.sending ? copy.sending : s.tidying ? copy.tidying : s.canTidy ? copy.next : copy.send}
               </button>
             </div>
