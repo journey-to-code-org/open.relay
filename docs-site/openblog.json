@@ -2,6 +2,7 @@
   "title": "open.relay",
   "description": "Let the people who use your app report problems and ask for things from inside it. Each one becomes a GitHub issue.",
   "url": "https://journey-to-code-org.github.io/open.relay/",
+  "ogImage": "/og.png",
   "author": {
     "name": "Mikey Nichols",
     "url": "https://github.com/journey-to-code-org"

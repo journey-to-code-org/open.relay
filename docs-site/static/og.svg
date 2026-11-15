@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="open.relay: Report a problem or ask for a feature">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f172a"/><stop offset="1" stop-color="#1e293b"/></linearGradient>
+    <radialGradient id="glow" cx="0.85" cy="0.1" r="0.7"><stop offset="0" stop-color="#2dd4bf" stop-opacity="0.35"/><stop offset="1" stop-color="#2dd4bf" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect x="72" y="72" width="8" height="486" rx="4" fill="#2dd4bf"/>
+  <g transform="translate(860 150)" fill="none" stroke="#2dd4bf" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"><path d="M0 40 h120 a24 24 0 0 1 24 24 v80 a24 24 0 0 1 -24 24 h-60 l-48 40 v-40 h-12 a24 24 0 0 1 -24 -24 v-80 a24 24 0 0 1 24 -24z"/><path d="M36 84 h72 M36 116 h48"/></g>
+  <text x="120" y="190" font-family="Inter, 'DejaVu Sans', sans-serif" font-size="30" font-weight="600" fill="#2dd4bf" letter-spacing="3">JOURNEY-TO-CODE-ORG</text>
+  <text x="120" y="330" font-family="Inter, 'DejaVu Sans', sans-serif" font-size="128" font-weight="800" fill="#f8fafc" letter-spacing="-3">open.relay</text>
+  <text x="120" y="420" font-family="Inter, 'DejaVu Sans', sans-serif" font-size="40" font-weight="500" fill="#cbd5e1">Report a problem or ask for a feature</text>
+  <text x="120" y="478" font-family="Inter, 'DejaVu Sans', sans-serif" font-size="40" font-weight="500" fill="#cbd5e1">from inside your app. Each becomes a GitHub issue.</text>
+  <text x="120" y="548" font-family="Inter, 'DejaVu Sans Mono', monospace" font-size="28" fill="#94a3b8">journey-to-code-org.github.io/open.relay</text>
+</svg>
